@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00c9a7"/>
+      <stop offset="1" stop-color="#0063a5"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#g)"/>
+  <circle cx="520" cy="90" r="130" fill="#ffffff" opacity="0.06"/>
+  <circle cx="60" cy="540" r="170" fill="#ffffff" opacity="0.06"/>
+  <path d="M300 120c-75 95-125 160-125 218a125 125 0 0 0 250 0c0-58-50-123-125-218z" fill="#ffffff" opacity="0.18"/>
+  <path d="M300 160c-50 60-80 105-80 145a80 80 0 0 0 160 0c0-40-30-85-80-145z" fill="#ffffff" opacity="0.22"/>
+  <text x="300" y="470" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="52" fill="#ffffff" text-anchor="middle" opacity="0.95">VAPO STORE</text>
+</svg>

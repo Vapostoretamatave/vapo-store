@@ -1,0 +1,29 @@
+[
+  {
+    "id": "b3",
+    "title": "Bienvenue chez Vapo Store",
+    "subtitle": "Conseils d'experts, qualité garantie et retrait en magasin à Tamatave",
+    "buttonText": "Nous contacter",
+    "buttonLink": "https://wa.me/261340000000",
+    "image": "/images/banner3.svg",
+    "order": 1
+  },
+  {
+    "id": "b2",
+    "title": "NOUVEAU : Pod Vapo X",
+    "subtitle": "Le pod compact nouvelle génération vient d'arriver en boutique",
+    "buttonText": "Voir le produit",
+    "buttonLink": "#products",
+    "image": "/images/banner2.svg",
+    "order": 2
+  },
+  {
+    "id": "b1",
+    "title": "PROMO E-LIQUIDES",
+    "subtitle": "Quelques e-liquides en promotion - et commandez facilement sur WhatsApp",
+    "buttonText": "Découvrir",
+    "buttonLink": "#products",
+    "image": "/images/banner1.svg",
+    "order": 3
+  }
+]

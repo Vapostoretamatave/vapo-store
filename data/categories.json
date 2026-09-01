@@ -1,0 +1,104 @@
+[
+  {
+    "id": "c2",
+    "name": "Cigarettes électroniques",
+    "image": "",
+    "order": 1,
+    "subs": [
+      {
+        "id": "sb-kits",
+        "name": "Kits",
+        "order": 1
+      },
+      {
+        "id": "sb-pods",
+        "name": "Pods",
+        "order": 2
+      },
+      {
+        "id": "sb-puffs",
+        "name": "Puffs",
+        "order": 3
+      }
+    ]
+  },
+  {
+    "id": "c1",
+    "name": "E-liquides",
+    "image": "",
+    "order": 2,
+    "subs": [
+      {
+        "id": "b916ef7d-d9a7-419e-900a-13628d6be59d",
+        "name": "Menthe",
+        "order": 1
+      },
+      {
+        "id": "12ce6271-b1ba-474e-a21b-9f7eb22b3aaa",
+        "name": "Fruité",
+        "order": 2
+      },
+      {
+        "id": "65ebaa21-37b6-4b5a-ba59-a6fe7740d8b9",
+        "name": "Gourmand",
+        "order": 3
+      },
+      {
+        "id": "70f730d1-b7ba-4450-ba87-75d3c91c8a02",
+        "name": "Classic tabac",
+        "order": 4
+      },
+      {
+        "id": "6f9c581d-2146-4327-be51-f52c5ec44a55",
+        "name": "Sels de nicotine",
+        "order": 5
+      }
+    ]
+  },
+  {
+    "id": "c3",
+    "name": "Résistances & cartouches",
+    "image": "",
+    "order": 3,
+    "subs": [
+      {
+        "id": "sb-resistances",
+        "name": "Résistances"
+      },
+      {
+        "id": "sb-cartouches",
+        "name": "Cartouches"
+      }
+    ]
+  },
+  {
+    "id": "c5",
+    "name": "DIY & Boosters",
+    "image": "",
+    "order": 4,
+    "subs": [
+      {
+        "id": "sb-coffrets",
+        "name": "Base",
+        "order": 1
+      },
+      {
+        "id": "sb-aromes",
+        "name": "Arômes Concentré",
+        "order": 2
+      },
+      {
+        "id": "sb-boosters",
+        "name": "Boosters",
+        "order": 3
+      }
+    ]
+  },
+  {
+    "id": "c4",
+    "name": "Accessoires",
+    "image": "",
+    "order": 5,
+    "subs": []
+  }
+]

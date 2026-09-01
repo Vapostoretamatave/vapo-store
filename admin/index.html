@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin - Vapo Store</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚙️</text></svg>">
+  <link rel="stylesheet" href="/admin/admin.css?v=9">
+</head>
+<body>
+
+  <div id="loginView" class="login-view hidden">
+    <div class="login-box">
+      <div class="login-logo">⚙️</div>
+      <h1>Espace Admin</h1>
+      <p>Connexion à la gestion de la boutique</p>
+      <form id="loginForm">
+        <label>Mot de passe
+          <input type="password" id="loginPassword" autocomplete="current-password" required placeholder="Entrez le mot de passe admin">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Se connecter</button>
+      </form>
+      <p class="login-error" id="loginError"></p>
+    </div>
+  </div>
+
+  <div id="appView" class="hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <span class="side-logo">💨</span>
+        <div>
+          <div class="side-name" id="sideStoreName">Vapo Store</div>
+          <div class="side-sub">Administration</div>
+          <div class="side-version" id="sideVersion">Version 5</div>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <a class="side-link active" data-view="dashboard">📊 Tableau de bord</a>
+        <a class="side-link" data-view="products">🛒 Produits</a>
+        <a class="side-link" data-view="categories">🗂️ Catégories</a>
+        <a class="side-link" data-view="banners">🖼️ Banderoles</a>
+        <a class="side-link" data-view="orders">📦 Commandes</a>
+        <a class="side-link" data-view="settings">⚙️ Réglages</a>
+      </nav>
+      <div class="side-foot">
+        <a class="side-link" href="/" target="_blank">🌐 Voir la boutique</a>
+        <button class="side-link" id="logoutBtn">🚪 Déconnexion</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <h1 id="pageTitle">Tableau de bord</h1>
+        <div class="topbar-actions">
+          <span class="badge-orders" id="newOrdersBadge" title="Nouvelles commandes">0</span>
+        </div>
+      </header>
+      <div class="content" id="content"></div>
+    </main>
+  </div>
+
+  <div class="modal hidden" id="productModal">
+    <div class="modal-box">
+      <button class="modal-close" id="prodClose">✕</button>
+      <h3 id="prodTitle">Nouveau produit</h3>
+      <form id="productForm" class="form-grid">
+        <input type="hidden" id="p_id">
+        <div class="fspan2">
+          <label>Nom du produit *
+            <input type="text" id="p_name" required placeholder="Ex : E-liquide Fraise Menthe 10ml">
+          </label>
+        </div>
+        <label>Catégorie
+          <select id="p_category"></select>
+        </label>
+<label>Sous-catégorie
+          <select id="p_subcategory"></select>
+        </label>
+        <label>Saveurs (menu « Par saveur », optionnel)
+          <div id="p_flavorChips" class="tag-cluster"></div>
+          <div class="addrow">
+            <input type="text" id="p_flavorNew" placeholder="Nouvelle saveur…">
+            <button type="button" class="btn btn-ghost" id="p_flavorAdd">＋ Ajouter</button>
+          </div>
+          <input type="hidden" id="p_flavors">
+          <div class="small">Cliquez sur les saveurs pour les cocher (plusieurs possibles). Les saveurs se gèrent dans Réglages.</div>
+        </label>
+        <label>Marque (menu « Par marque », optionnel)
+          <select id="p_marque"></select>
+          <div class="addrow">
+            <input type="text" id="p_marqueNew" placeholder="Nouvelle marque…">
+            <button type="button" class="btn btn-ghost" id="p_marqueAdd">＋ Ajouter</button>
+          </div>
+          <div class="small">Choisissez une marque dans la liste ou ajoutez-en une. Elles se gèrent aussi dans Réglages.</div>
+        </label>
+        <label>Contenance (menu « Par contenance », optionnel)
+          <select id="p_contenance"></select>
+          <div class="addrow">
+            <input type="text" id="p_contenanceNew" placeholder="Ex : 10 ml, 30 ml…">
+            <button type="button" class="btn btn-ghost" id="p_contenanceAdd">＋ Ajouter</button>
+          </div>
+          <div class="small">Se choisir dans la liste ou s'ajouter. Gérable dans Réglages.</div>
+        </label>
+        <label>Taux de nicotine (menu « Par taux », optionnel)
+          <div id="p_tauxChips" class="tag-cluster"></div>
+          <div class="addrow">
+            <input type="text" id="p_tauxNew" placeholder="Ex : 3 mg, 6 mg…">
+            <button type="button" class="btn btn-ghost" id="p_tauxAdd">＋ Ajouter</button>
+          </div>
+          <input type="hidden" id="p_taux">
+          <div class="small">Cliquez pour cocher les taux disponibles (plusieurs possibles). Gérable dans Réglages.</div>
+        </label>
+        <label>Badge (optionnel)
+          <input type="text" id="p_badge" placeholder="Promo, Nouveauté, Coup de cœur...">
+        </label>
+        <label>Prix (Ar) *
+          <input type="number" id="p_price" required min="0" step="0.01">
+        </label>
+        <label>Ancien prix / promo (optionnel)
+          <input type="number" id="p_promoPrice" min="0" step="0.01">
+        </label>
+        <label>Disponibilité
+          <select id="p_available">
+            <option value="1">Disponible à la vente</option>
+            <option value="0">En rupture</option>
+          </select>
+        </label>
+        <label>Note / 5
+          <input type="number" id="p_rating" min="0" max="5" step="0.1" value="0">
+        </label>
+        <label>Nombre d'avis
+          <input type="number" id="p_reviews" min="0" value="0">
+        </label>
+        <div class="fspan2">
+          <label>Photo du produit
+            <div class="img-row">
+              <div class="img-preview" id="p_imagePreview"><img id="p_imageImg" alt=""></div>
+              <div class="img-controls">
+                <input type="file" id="p_file" accept="image/*">
+                <input type="text" id="p_image" placeholder="Se remplit tout seul après le choix du fichier. Sinon URL (http...) ou /images/xxx.jpg">
+              </div>
+            </div>
+          </label>
+        </div>
+        <div class="fspan2">
+          <label>Options / variantes (une par ligne : nicotine, couleur...)
+            <textarea id="p_options" placeholder="0 mg&#10;3 mg&#10;6 mg&#10;12 mg"></textarea>
+          </label>
+        </div>
+        <div class="fspan2">
+          <label>Description
+            <textarea id="p_description" placeholder="Description du produit..."></textarea>
+          </label>
+        </div>
+        <div class="fspan2 checks">
+          <label class="check"><input type="checkbox" id="p_featured"> Mettre en avant (accueil)</label>
+          <label class="check"><input type="checkbox" id="p_visible" checked> Visible sur la boutique</label>
+        </div>
+        <div class="fspan2 form-actions">
+          <button type="button" class="btn btn-ghost" id="prodCancel">Annuler</button>
+          <button type="submit" class="btn btn-primary">💾 Enregistrer le produit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="orderModal">
+    <div class="modal-box">
+      <button class="modal-close" id="orderClose">✕</button>
+      <div id="orderDetail"></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="bannerModal">
+    <div class="modal-box">
+      <button class="modal-close" id="bannerClose">✕</button>
+      <h3 id="bannerTitle">Nouvelle banderole</h3>
+      <form id="bannerForm" class="form-grid">
+        <input type="hidden" id="b_id">
+        <div class="fspan2">
+          <label>Titre de la banderole *
+            <input type="text" id="b_title" required placeholder="Ex : PROMO E-LIQUIDES">
+          </label>
+        </div>
+        <div class="fspan2">
+          <label>Sous-titre
+            <input type="text" id="b_subtitle" placeholder="Court texte d'accompagnement">
+          </label>
+        </div>
+        <label>Texte du bouton
+          <input type="text" id="b_buttonText" placeholder="Découvrir">
+        </label>
+        <label>Lien du bouton
+          <input type="text" id="b_buttonLink" placeholder="#products ou une URL http...">
+        </label>
+        <div class="fspan2">
+          <label>Image de la banderole (format large conseillé ~1600x520)
+            <div class="img-row">
+              <div class="img-preview" id="b_imagePreview" style="width:220px;height:90px"><img id="b_imageImg" alt=""></div>
+              <div class="img-controls">
+                <input type="file" id="b_file" accept="image/*">
+                <input type="text" id="b_image" placeholder="Se remplit tout seul après le choix du fichier. Sinon URL (http...) ou /images/xxx.jpg">
+              </div>
+            </div>
+          </label>
+        </div>
+        <div class="fspan2 form-actions">
+          <button type="button" class="btn btn-ghost" id="bannerCancel">Annuler</button>
+          <button type="submit" class="btn btn-primary">💾 Enregistrer la banderole</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="catModal">
+    <div class="modal-box">
+      <button class="modal-close" id="catClose">✕</button>
+      <h3>Modifier la catégorie</h3>
+      <form id="catEditForm" class="form-grid">
+        <input type="hidden" id="c_id">
+        <div class="fspan2">
+          <label>Nom de la catégorie *
+            <input type="text" id="c_name" required>
+          </label>
+        </div>
+        <div class="fspan2">
+          <label>Sous-catégories</label>
+          <div id="subsList"></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input type="text" id="newSubName" placeholder="Nouvelle sous-catégorie...">
+            <button type="button" class="btn btn-outline" id="addSubBtn">➕ Ajouter</button>
+          </div>
+          <div class="small">Ex : pour E-liquides → Classic tabac, Menthe, Fruité...</div>
+        </div>
+        <div class="fspan2 form-actions">
+          <button type="button" class="btn btn-ghost" id="catCancel">Annuler</button>
+          <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <script src="/admin/admin.v21.js"></script>
+</body>
+</html>

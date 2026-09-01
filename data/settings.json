@@ -1,0 +1,48 @@
+{
+  "storeName": "Vapo Store Tamatave",
+  "tagline": "Boutique de cigarette électronique à Tamatave",
+  "logoText": "Vapo Store Tamatave",
+  "logoImage": "/uploads/1788077985590-460e56.png",
+  "announcement": "Livraison rapide à Tamatave - Commandez sur WhatsApp !",
+  "announcementEnabled": true,
+  "currency": "Ar",
+  "currencyPosition": "after",
+  "whatsapp": "+261347623207",
+  "whatsappDisplay": "+261347623207 ",
+  "phone": "+261347623207",
+  "email": "",
+  "address": "vigie Ankirihiry Toamasina -Madagascar  ",
+  "hours": "Lundi - Samedi : 8h00 - 17h00 Dimanche : 8h00 - 11h00",
+  "mapLink": "https://maps.google.com/?q=Toamasina+Madagascar",
+  "facebook": "",
+  "instagram": "",
+  "primaryColor": "#00c795",
+  "customCss": "",
+  "ageGateEnabled": true,
+  "heroTitle": "La vape nouvelle génération à Tamatave",
+  "heroSubtitle": "Pods, kits, e-liquides et accessoires. Qualité garantie, conseils d'experts et commande facile sur WhatsApp.",
+  "heroBtnText": "Découvrir nos produits",
+  "heroBtnLink": "#products",
+  "heroImage": "/images/hero.svg",
+  "trustItems": [
+    {
+      "icon": "🛡️",
+      "title": "Qualité garantie",
+      "text": "Produits originaux et vérifiés."
+    },
+    {
+      "icon": "⚡",
+      "title": "Commande en 2 minutes",
+      "text": "Envoyez votre commande sur WhatsApp."
+    },
+    {
+      "icon": "🏪",
+      "title": "Retrait en magasin",
+      "text": "Ou livraison rapide à Tamatave."
+    }
+  ],
+  "aboutTitle": "Bienvenue chez Vapo Store",
+  "aboutText": "Votre boutique spécialisée de la cigarette électronique à Toamasina. Conseils, produits de qualité et service rapide, pour les débutants comme pour les confirmés.",
+  "adminPassword": "vapostore2026",
+  "lastOrderNumber": 11
+}

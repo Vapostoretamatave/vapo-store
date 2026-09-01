@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: vapo-store
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: UPLOAD_DIR
+        value: /data/uploads
+    disk:
+      name: vapo-data
+      mountPath: /data
+      sizeGB: 1

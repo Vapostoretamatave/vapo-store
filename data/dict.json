@@ -1,0 +1,29 @@
+{
+  "saveurs": [
+    "Fruité",
+    "Frais",
+    "Menthe",
+    "Tabac",
+    "Gourmand"
+  ],
+  "marques": [
+    "Liqua",
+    "Vapelux",
+    "Mentholix",
+    "VGOD",
+    "Hugo Vapor",
+    "EL-FRANCE",
+    "ENFER"
+  ],
+  "contenances": [
+    "10 ml",
+    "50 ml",
+    "100 ml"
+  ],
+  "taux": [
+    "Sans nicotine",
+    "12 mg",
+    "10 mg",
+    "20 mg"
+  ]
+}
