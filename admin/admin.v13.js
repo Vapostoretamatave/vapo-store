@@ -840,6 +840,59 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
     };
   }
 
+  function bannerLinkToValue(link) {
+    var l = (link || '').replace(/^#\/?/, '');
+    var parts = l.split('/');
+    if (!l || l === 'products') return '#products';
+    if (parts[0] === 'promo') return '#promo';
+    if (parts[0] === 'cat' && parts[1]) return 'cat/' + parts[1];
+    if (parts[0] === 'marque' && parts[1]) return 'marque/' + decodeURIComponent(parts[1]);
+    if (parts[0] === 'saveur' && parts[1]) return 'saveur/' + decodeURIComponent(parts[1]);
+    if (parts[0] === 'search' && parts[1]) return '__search__';
+    return link || '#products';
+  }
+
+  function bannerValueToLink() {
+    var v = $('b_dest').value;
+    if (v === '#products') return '#products';
+    if (v === '#promo') return '#promo';
+    if (v === '__search__') {
+      var t = ($('b_buttonLink').value || '').replace(/^#\/?search\//, '').trim();
+      return '#search/' + encodeURIComponent(t || '');
+    }
+    if (v.indexOf('cat/') === 0) return '#' + v;
+    if (v.indexOf('marque/') === 0) return '#marque/' + encodeURIComponent(v.slice(7));
+    if (v.indexOf('saveur/') === 0) return '#saveur/' + encodeURIComponent(v.slice(7));
+    return $('#b_buttonLink').value || '#products';
+  }
+
+  function populateBannerDest(link) {
+    var sel = $('b_dest');
+    var catsOpts = '<optgroup label="Catégories"></optgroup>' + state.categories.map(function (c) {
+      return '<option value="cat/' + esc(c.id) + '">📁 ' + esc(c.name) + '</option>';
+    }).join('');
+    var marquesOpts = '<optgroup label="Marques / gammes"></optgroup>' + (state.dict.marques || []).map(function (m) {
+      return '<option value="marque/' + esc(m) + '">🏷️ ' + esc(m) + '</option>';
+    }).join('');
+    var saveursOpts = '<optgroup label="Saveurs"></optgroup>' + (state.dict.saveurs || []).map(function (s) {
+      return '<option value="saveur/' + esc(s) + '">🍬 ' + esc(s) + '</option>';
+    }).join('');
+    sel.innerHTML = '<option value="#products">Tous les produits</option>' +
+      '<option value="#promo">Produits en promo</option>' +
+      catsOpts + marquesOpts + saveursOpts +
+      '<option value="__search__">Recherche libre...</option>';
+    var v = bannerLinkToValue(link);
+    if (sel.querySelector('option[value="' + v.replace(/"/g, '\\"') + '"]')) {
+      sel.value = v;
+    } else {
+      sel.value = '__search__';
+    }
+    if (v === '__search__') {
+      var t = (link || '').replace(/^#\/?search\//, '');
+      $('b_buttonLink').value = decodeURIComponent(t);
+    }
+  }
+
   function openBannerForm(id) {
     var b = id ? state.banners.find(function (x) { return x.id === id; }) : null;
     $('bannerTitle').textContent = b ? 'Modifier la banderole' : 'Nouvelle banderole';
@@ -847,7 +900,11 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
     $('b_title').value = b ? b.title : '';
     $('b_subtitle').value = b ? b.subtitle || '' : '';
     $('b_buttonText').value = b ? b.buttonText || '' : '';
-    $('b_buttonLink').value = b ? b.buttonLink || '#products' : '#products';
+    var link = b ? b.buttonLink || '#products' : '#products';
+    populateBannerDest(link);
+    if ($('b_dest').value !== '__search__') {
+      $('b_buttonLink').value = $('b_dest').value === '#products' ? '#products' : link;
+    }
     $('b_image').value = b ? (b.image || '') : '';
     $('b_imageImg').src = b && b.image ? b.image : '';
     $('bannerModal').classList.remove('hidden');
@@ -963,6 +1020,9 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
   $('bannerClose').onclick = closeBannerForm;
   $('bannerCancel').onclick = closeBannerForm;
   bindUpload($('b_file'), $('b_image'), $('b_imageImg'));
+  $('b_dest').addEventListener('change', function () {
+    $('b_buttonLink').value = bannerValueToLink();
+  });
 
   /* ---------------- Orders ---------------- */
   function renderOrders() {

@@ -100,5 +100,12 @@
     "image": "",
     "order": 5,
     "subs": []
+  },
+  {
+    "id": "83bc7b35-968a-4842-9262-3b3aeb70f7b9",
+    "name": "Destockage",
+    "image": "",
+    "order": 6,
+    "subs": []
   }
 ]

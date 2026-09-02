@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Admin - Vapo Store</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚙️</text></svg>">
-  <link rel="stylesheet" href="/admin/admin.css?v=9">
+  <link rel="stylesheet" href="/admin/admin.css?v=10">
 </head>
 <body>
 
@@ -192,8 +192,16 @@
         <label>Texte du bouton
           <input type="text" id="b_buttonText" placeholder="Découvrir">
         </label>
-        <label>Lien du bouton
-          <input type="text" id="b_buttonLink" placeholder="#products ou une URL http...">
+<label>Destination du bouton
+          <select id="b_dest">
+            <option value="#products">Tous les produits</option>
+            <option value="#promo">Produits en promo</option>
+            <optgroup label="Catégories"></optgroup>
+            <optgroup label="Marques / gammes"></optgroup>
+            <optgroup label="Saveurs"></optgroup>
+            <option value="__search__">Recherche libre...</option>
+          </select>
+          <input type="text" id="b_buttonLink" placeholder="Lien rempli automatiquement. Ou tapez une URL http...">
         </label>
         <div class="fspan2">
           <label>Image de la banderole (format large conseillé ~1600x520)
@@ -244,6 +252,6 @@
 
   <div id="toasts"></div>
 
-  <script src="/admin/admin.v21.js"></script>
+  <script src="/admin/admin.v22.js"></script>
 </body>
 </html>

@@ -14,8 +14,8 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - `public/index.html` référence `/app.vN.js` et `/styles.css?v=N`.
 - `admin/index.html` référence `/admin/admin.vN.js` et `/admin/admin.css?v=N`.
 - **Règle** : quand on modifie `public/app.js`, bump vers app.v(N+1) et copier LA SOURCE sur TOUTES les versions numérotées (v5..N+1). Idem admin. Quand on modifie un CSS, bumper son `?v=`.
-- État actuel (à mettre à jour) : boutique = app.v30.js + styles.css?v=20 ; admin = admin.v21.js + admin.css?v=9. Prochains bumps : app.v31, admin.v22, styles.css?v=21, admin.css?v=10 (selon fichiers touchés).
-- Il existe des copies numérotées : public/app.v5..v30.js, admin/admin.v5..v21.js. TOUJOURS resync toutes quand on change la source.
+- État actuel (à mettre à jour) : boutique = app.v33.js + styles.css?v=25 ; admin = admin.v22.js + admin.css?v=10. Prochains bumps : app.v34, admin.v23, styles.css?v=26, admin.css?v=11 (selon fichiers touchés).
+- Il existe des copies numérotées : public/app.v5..v33.js, admin/admin.v5..v22.js. TOUJOURS resync toutes quand on change la source.
 
 ## Structure
 - `server.js` : tout le backend (API, fichiers statiques, auth). `handleApi()`, `normalizeProduct()`, `serveStatic()`.
@@ -39,6 +39,9 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - Structure des prix Render : Starter ≈ 7$/mois (Web Service) + disque 0,25$/Go/mois. Free = pas de disque (données perdues au restart) + mise en veille après 15 min.
 
 ## Historique / état
+- **Hash routing + liens bannières (app.v31 / admin.v22)** : chaque filtre a une URL propre via `#` : `#cat/<id>`, `#cat/<id>/sub/<subId>`, `#marque/<nom>`, `#saveur/<nom>`, `#search/<texte>`, `#promo`. Liens lus au chargement + à chaque `hashchange` ; `writeHash()` met à jour l'URL à chaque `renderProducts()`. **`promoOnly`** (état) filtre la grille sur les produits en promo (promoPrice OU badge promo/prix).
+- **Admin bannières** : le champ « Lien du bouton » devient un sélecteur `#b_dest` (Tous les produits / Produits en promo / Catégories ▾ / Marques ▾ / Saveurs ▾ / Recherche libre) qui remplit automatiquement `#b_buttonLink` ; `populateBannerDest(link)` reverse-map le lien existant, `bannerValueToLink()` convertit le choix en hash.
+- **Prix promo clairs (app.v33 / styles.css?v=25)** : badge `-X%` calculé et affiché DANS le badge promo en haut de l'image (`discountPct()`, `.badge-pct`) ; barré corrigé (`.old` = line-through gris + petit) ; prix promo rouge plus gros (`.price.promo`, `.pm-promo` 24px nowrap). **Mobile <600px** : l'ancien prix barré passe sur sa propre ligne AU-DESSUS du prix promo (`flex-wrap: wrap` + `.card-foot .old{width:100%}`) — même comportement que pav-mdg.mg. Bouton « Ajouter/Choisir » NON modifié (reste compact à droite). Produit « Enfer Pod kiwi Passion » a un mauvais prix promo (20.000 > prix normal 15.000) → à corriger en admin.
 - Footer « Paiements acceptés » style pav-mdg.mg : badges MVola (#00a859/#ffeb3b gras italique), Orange Money (#ff6600/blanc, 2 lignes), + badge « Paiement à la livraison » pill doré ; configurable admin (payMvola/payOrange/payLivraison). Airtel Money = retiré (l'utilisateur ne le reçoit pas).
 - Saveurs & Marques : gérés dans Réglages, carte repliable (« Afficher / modifier »), bouton « Marques & saveurs » dans Produits (switch+scroll+ouvre), recherche dans les listes, listes avec max-height+scroll.
 - Marques dédupliquées insensible à la casse (boutique dimsFor : dédup via lowercase).
