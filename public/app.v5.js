@@ -408,6 +408,17 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function goPromo() {
+    state.category = 'all';
+    state.facet = 'sub';
+    state.subcategory = '';
+    state.search = '';
+    state.promoOnly = true;
+    $('searchInput').value = '';
+    renderProducts();
+    document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+  }
+
   function applyNavActive() {
     var links = document.querySelectorAll('.nav-link');
     links.forEach(function (x) {
@@ -433,10 +444,12 @@
     html += state.categories.map(function (c) {
       return '<a class="nav-link" data-cat="' + esc(c.id) + '" href="#products">' + esc(c.name) + '</a>';
     }).join('');
+    html += '<a class="nav-link nav-promo" data-promo="1" href="#promo">🔥 Destockage / Promo</a>';
     nav.innerHTML = html;
     nav.querySelectorAll('.nav-link').forEach(function (a) {
       a.addEventListener('click', function (e) {
         e.preventDefault();
+        if (a.getAttribute('data-promo')) { goPromo(); return; }
         var cat = a.getAttribute('data-cat');
         selectCategory(cat, 'sub', '');
         padNav();
@@ -467,11 +480,13 @@
         '<div class="menu-subs"><div class="ms-inner">' + subs + extra + '</div></div>' +
       '</div>';
     }).join('');
+    m += '<a class="menu-link menu-promo" data-promo="1" href="#promo">🔥 Destockage / Promo</a>';
     $('menuBody').innerHTML = m;
 
     $('menuBody').querySelectorAll('.menu-link, .menu-sub, .menu-sub2').forEach(function (a) {
       a.addEventListener('click', function (e) {
         e.preventDefault();
+        if (a.getAttribute('data-promo')) { closeMenu(); goPromo(); return; }
         selectCategory(a.getAttribute('data-menu-cat'), a.getAttribute('data-menu-facet') || 'sub', a.getAttribute('data-menu-sub'));
         closeMenu();
       });

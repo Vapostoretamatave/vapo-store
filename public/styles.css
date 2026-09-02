@@ -102,6 +102,10 @@ img { max-width: 100%; display: block; }
 }
 .nav-link:hover { color: #fff; }
 .nav-link.active { color: var(--primary); border-bottom-color: var(--primary); }
+.nav-link.nav-promo {
+  color: #ffd24a; border-bottom-color: transparent;
+}
+.nav-link.nav-promo:hover { color: #ffb800; }
 
 /* ---------- Hero (carrousel) ---------- */
 .hero {
