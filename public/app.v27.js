@@ -638,7 +638,9 @@
     grid.querySelectorAll('.card').forEach(function (c) {
       c.addEventListener('click', function (e) {
         if (e.target.closest('.add-btn')) return;
-        openProduct(c.getAttribute('data-id'));
+        var p = state.products.find(function (x) { return x.id === c.getAttribute('data-id'); });
+        if (p && hasDetail(p)) openProductDetail(p.id);
+        else openProduct(c.getAttribute('data-id'));
       });
     });
     grid.querySelectorAll('[data-add]').forEach(function (btn) {
@@ -706,6 +708,125 @@
       closeModals(null);
     };
     show(null, 'productModal');
+  }
+
+  function hasDetail(p) {
+    if (!p) return false;
+    if (p.longDescription && String(p.longDescription).trim()) return true;
+    if (Array.isArray(p.gallery) && p.gallery.length) return true;
+    return false;
+  }
+
+  function galleryFor(p) {
+    var imgs = [p.image].concat(p.gallery || []).filter(function (u) { return !!u; });
+    return imgs;
+  }
+
+  function renderDetailDesc(raw) {
+    var txt = String(raw || '');
+    if (!txt.trim()) return '';
+    var html = '';
+    var re = /\[image\]([\s\S]*?)\[\/image\]/g;
+    var last = 0;
+    var m;
+    while ((m = re.exec(txt)) !== null) {
+      var before = txt.slice(last, m.index);
+      if (before.trim()) {
+        html += before.split(/\n+/).map(function (par) {
+          var p = par.trim();
+          return p ? '<p>' + esc(p) + '</p>' : '';
+        }).join('');
+      }
+      var url = m[1].split('\n').map(function (x) { return x.trim(); }).filter(Boolean)[0] || '';
+      if (url) html += '<figure class="dl-fig"><img src="' + esc(url) + '" alt="" loading="lazy"></figure>';
+      last = m.index + m[0].length;
+    }
+    var tail = txt.slice(last);
+    if (tail.trim()) {
+      html += tail.split(/\n+/).map(function (par) {
+        var p = par.trim();
+        return p ? '<p>' + esc(p) + '</p>' : '';
+      }).join('');
+    }
+    return html;
+  }
+
+  function openProductDetail(id) {
+    var p = state.products.find(function (x) { return x.id === id; });
+    if (!p) return;
+    optionCache[id] = p.options && p.options.length ? p.options[0] : '';
+    var qty = 1;
+    var s = state.settings || {};
+    var imgs = galleryFor(p);
+    $('dlBadge').textContent = p.badge || '';
+    $('dlBadge').style.display = p.badge ? '' : 'none';
+    $('dlName').textContent = p.name;
+    $('dlRating').innerHTML = p.rating ? stars(p.rating) + ' ' + p.rating.toFixed(1) + ' (' + (p.reviews || 0) + ' avis)' : 'Nouveau produit';
+    if (p.promoPrice != null && p.promoPrice !== '') {
+      var pct = discountPct(p);
+      $('dlPrice').innerHTML = '<span class="old">' + fmt(p.price) + '</span>' +
+        '<span class="pm-promo">' + fmt(p.promoPrice) + '</span>' +
+        (pct ? '<span class="discount-badge">-' + pct + '</span>' : '');
+    } else {
+      $('dlPrice').textContent = fmt(p.price);
+    }
+    var meta = [];
+    if (p.marque) meta.push('<span>Marque : <b>' + esc(p.marque) + '</b></span>');
+    if (p.contenance) meta.push('<span>Contenance : <b>' + esc(p.contenance) + '</b></span>');
+    if (p.taux) meta.push('<span>Taux : <b>' + esc(p.taux) + '</b></span>');
+    if ((p.flavors || []).length) meta.push('<span>Saveurs : <b>' + esc(p.flavors.join(', ')) + '</b></span>');
+    $('dlMeta').innerHTML = meta.join('');
+    $('dlMeta').style.display = meta.length ? '' : 'none';
+    var optEl = $('dlOptions');
+    if (p.options && p.options.length) {
+      optEl.innerHTML = p.options.map(function (o, i) {
+        return '<button class="opt-btn' + (i === 0 ? ' on' : '') + '" data-opt="' + esc(o) + '">' + esc(o) + '</button>';
+      }).join('');
+      optEl.querySelectorAll('.opt-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          optEl.querySelectorAll('.opt-btn').forEach(function (x) { x.classList.remove('on'); });
+          b.classList.add('on');
+          optionCache[id] = b.getAttribute('data-opt');
+        });
+      });
+    } else {
+      optEl.innerHTML = '';
+    }
+    $('dlQty').textContent = qty;
+    $('dlStock').innerHTML = p.available === false
+      ? '<span class="ko">✖ Momentanément en rupture de stock</span>'
+      : '<span class="ok">✔ Disponible</span>';
+    var addBtn = $('dlAdd');
+    addBtn.disabled = p.available === false;
+    addBtn.style.opacity = p.available === false ? 0.5 : 1;
+    addBtn.textContent = p.available === false ? 'En rupture' : 'Ajouter au panier';
+    var wa = s.whatsapp ? 'https://wa.me/' + s.whatsapp.replace(/\D/g, '') + '?text=' :
+      ('https://wa.me/?text=');
+    $('dlWa').href = wa + encodeURIComponent('Bonjour ' + (s.storeName || '') + ', je suis intéressé(e) par : ' + p.name + (p.promoPrice != null && p.promoPrice !== '' ? ' (' + fmt(p.promoPrice) + ')' : ' (' + fmt(p.price) + ')'));
+    var main = $('dlMain');
+    main.src = imgs[0] || '';
+    var thumbs = $('dlThumbs');
+    thumbs.innerHTML = imgs.map(function (u, i) {
+      return '<button type="button" class="dl-thumb' + (i === 0 ? ' on' : '') + '" data-i="' + i + '"><img src="' + esc(u) + '" alt=""></button>';
+    }).join('');
+    thumbs.querySelectorAll('.dl-thumb').forEach(function (t) {
+      t.addEventListener('click', function () {
+        thumbs.querySelectorAll('.dl-thumb').forEach(function (x) { x.classList.remove('on'); });
+        t.classList.add('on');
+        main.src = imgs[+t.getAttribute('data-i')];
+      });
+    });
+    var body = $('dlDesc');
+    var txt = String(p.longDescription || '').trim();
+    body.innerHTML = renderDetailDesc(txt) || '<p>' + esc(p.description || '') + '</p>';
+    $('dlPlus').onclick = function () { qty++; $('dlQty').textContent = qty; };
+    $('dlMinus').onclick = function () { if (qty > 1) { qty--; $('dlQty').textContent = qty; } };
+    addBtn.onclick = function () {
+      if (p.available === false) { toast('Produit momentanément en rupture'); return; }
+      addToCart(p.id, optionCache[id] || '', qty);
+      closeModals(null);
+    };
+    show(null, 'detailModal');
   }
 
   /* ---------------- Cart ---------------- */
@@ -860,6 +981,7 @@
     if (except !== 'filterDrawer') $('filterDrawer').classList.add('hidden');
     if (except !== 'checkoutModal') $('checkoutModal').classList.add('hidden');
     if (except !== 'productModal') $('productModal').classList.add('hidden');
+    if (except !== 'detailModal') $('detailModal').classList.add('hidden');
     if (except !== 'successModal') $('successModal').classList.add('hidden');
     ov.classList.add('hidden');
   }
@@ -912,6 +1034,7 @@
     $('filterBtn').onclick = openFilter;
     $('filterClose').onclick = closeFilter;
     $('pmClose').onclick = function () { closeModals(null); };
+    $('dlClose').onclick = function () { closeModals(null); };
     $('coClose').onclick = function () { closeModals(null); };
     $('successBtn').onclick = function () { closeModals(null); };
     $('checkoutForm').addEventListener('submit', submitOrder);

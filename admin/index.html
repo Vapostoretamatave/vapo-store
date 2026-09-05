@@ -149,9 +149,30 @@
             <textarea id="p_options" placeholder="0 mg&#10;3 mg&#10;6 mg&#10;12 mg"></textarea>
           </label>
         </div>
-        <div class="fspan2">
+<div class="fspan2">
           <label>Description
             <textarea id="p_description" placeholder="Description du produit..."></textarea>
+          </label>
+        </div>
+        <div class="fspan2">
+          <label>Description complète (fiche détaillée, optionnel)
+            <textarea id="p_longDescription" placeholder="Description longue qui s'affiche quand on clique sur l'image/nom du produit.&#10;&#10;Pour insérer une image au milieu du texte :&#10;[image]&#10;/uploads/photo.jpg&#10;[/image]&#10;&#10;Chaque image garde sa vraie taille (photo classique ou banderole)."></textarea>
+            <div class="addrow" style="margin-top:8px">
+              <input type="file" id="p_descImage" accept="image/*">
+              <button type="button" class="btn btn-ghost" id="p_descImageAdd">＋ Insérer une image dans la description</button>
+            </div>
+            <div class="small">Astuce : ce bouton téléverse l'image et ajoute automatiquement la balise [image]...[/image] au texte. Vous pouvez aussi écrire les balises à la main.</div>
+          </label>
+        </div>
+        <div class="fspan2">
+          <label>Galerie d'images supplémentaires (optionnel)
+            <div class="img-row">
+              <div class="img-controls" style="flex:1">
+                <input type="file" id="p_galleryFile" accept="image/*" multiple>
+                <div class="small">Choisissez plusieurs images (upload auto). Ou collez des URLs ci-dessous, une par ligne.</div>
+                <textarea id="p_gallery" placeholder="/uploads/photo1.jpg&#10;https://.../photo2.jpg"></textarea>
+              </div>
+            </div>
           </label>
         </div>
         <div class="fspan2 checks">
@@ -252,6 +273,6 @@
 
   <div id="toasts"></div>
 
-  <script src="/admin/admin.v22.js"></script>
+  <script src="/admin/admin.v24.js"></script>
 </body>
 </html>

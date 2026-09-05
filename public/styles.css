@@ -439,6 +439,45 @@ button, a, input, select, textarea, .card, .chip { touch-action: manipulation; }
 .pm-stock.ok { color: #2e9e4f; font-weight: 700; }
 .pm-stock.ko { color: var(--danger); font-weight: 700; }
 
+/* ---------- Detail modal (fiche produit complète) ---------- */
+.modal-box-lg { width: min(980px, 100%); }
+.dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.dl-media { min-width: 0; }
+.dl-main {
+  background: #eef3f8; border-radius: 12px; overflow: hidden; display: flex;
+  align-items: center; justify-content: center; aspect-ratio: 1/1; margin-bottom: 10px;
+}
+.dl-main img { width: 100%; height: 100%; object-fit: contain; }
+.dl-thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.dl-thumbs button {
+  width: 64px; height: 64px; border: 2px solid var(--border); border-radius: 8px;
+  padding: 0; overflow: hidden; cursor: pointer; background: #fff;
+}
+.dl-thumbs button.on { border-color: var(--primary); }
+.dl-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+.dl-info h3 { font-size: 22px; margin: 8px 0; line-height: 1.25; }
+.dl-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.dl-meta span b { color: var(--dark); }
+.dl-btns { display: grid; gap: 8px; }
+.btn-wa {
+  display: inline-block; text-align: center; text-decoration: none;
+  background: #25d366; color: #fff; font-weight: 800; border-radius: 10px; padding: 12px;
+}
+.btn-wa:hover { background: #1eb556; color: #fff; }
+.dl-desc { margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
+.dl-desc p { color: var(--text); font-size: 14.5px; line-height: 1.7; margin: 0 0 12px; }
+.dl-desc p:last-child { margin-bottom: 0; }
+.dl-fig { margin: 16px 0; text-align: center; }
+.dl-fig img {
+  max-width: 100%; height: auto; border-radius: 10px;
+  display: block; margin: 0 auto; width: auto;
+}
+.dl-fig img.dl-wide { width: 100%; }
+@media (max-width: 720px) {
+  .dl-grid { grid-template-columns: 1fr; }
+  .dl-main { aspect-ratio: 1/1; }
+}
+
 /* ---------- Forms ---------- */
 form label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--dark); }
 form input, form textarea, form select {

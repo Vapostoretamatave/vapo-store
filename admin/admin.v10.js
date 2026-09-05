@@ -413,6 +413,9 @@ var $ = function (id) { return document.getElementById(id); };
     $('p_imageImg').src = p ? p.image : '';
     $('p_options').value = p && p.options && p.options.length ? p.options.join('\n') : '';
     $('p_description').value = p ? p.description || '' : '';
+    $('p_longDescription').value = p ? p.longDescription || '' : '';
+    $('p_gallery').value = p && p.gallery && p.gallery.length ? p.gallery.join('\n') : '';
+    $('p_galleryFile').value = '';
     $('p_featured').checked = p ? !!p.featured : false;
     $('p_visible').checked = p ? p.visible !== false : true;
     fillCatSelect();
@@ -597,6 +600,8 @@ var $ = function (id) { return document.getElementById(id); };
       image: $('p_image').value.trim(),
       options: $('p_options').value,
       description: $('p_description').value,
+      longDescription: $('p_longDescription').value,
+      gallery: $('p_gallery').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
       featured: $('p_featured').checked,
       visible: $('p_visible').checked
     };
@@ -627,6 +632,8 @@ var $ = function (id) { return document.getElementById(id); };
   $('p_tauxAdd').onclick = addTauxFromForm;
   $('p_tauxNew').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); addTauxFromForm(); } });
   bindUpload($('p_file'), $('p_image'), $('p_imageImg'));
+  bindGalleryUpload($('p_galleryFile'), $('p_gallery'));
+  bindDescImageInsert($('p_descImage'), $('p_descImageAdd'), $('p_longDescription'));
 
   /* ---------------- Image upload ---------------- */
   function bindUpload(fileInput, urlInput, previewImg) {
@@ -674,6 +681,59 @@ var $ = function (id) { return document.getElementById(id); };
           }
         };
         img.src = raw;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function bindGalleryUpload(fileInput, urlArea) {
+    fileInput.addEventListener('change', function () {
+      var files = Array.prototype.slice.call(fileInput.files || []);
+      if (!files.length) return;
+      toast('Téléversement de la galerie…');
+      var i = 0;
+      function next() {
+        if (i >= files.length) { fileInput.value = ''; toast('Galerie envoyée ✔'); return; }
+        var file = files[i++];
+        if (file.size > 15 * 1024 * 1024) return next();
+        var reader = new FileReader();
+        reader.onerror = function () { next(); };
+        reader.onload = function (ev) {
+          api('/api/admin/upload', { method: 'POST', body: { name: file.name, data: ev.target.result }, timeout: 45000 }).then(function (res) {
+            if (res.ok && res.d.url) {
+              var cur = urlArea.value.trim();
+              urlArea.value = cur ? cur + '\n' + res.d.url : res.d.url;
+            } else {
+              toast(res.d.error || 'Erreur image', true);
+            }
+            next();
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+      next();
+    });
+  }
+
+  function bindDescImageInsert(fileInput, addBtn, area) {
+    addBtn.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files[0];
+      if (!file) return;
+      if (file.size > 15 * 1024 * 1024) return toast('Image trop lourde (max 15 Mo)', true);
+      toast('Téléversement…');
+      var reader = new FileReader();
+      reader.onerror = function () { toast('Erreur de lecture du fichier', true); };
+      reader.onload = function (ev) {
+        api('/api/admin/upload', { method: 'POST', body: { name: file.name, data: ev.target.result }, timeout: 45000 }).then(function (res) {
+          if (!res.ok || !res.d.url) { toast(res.d.error || 'Erreur image', true); return; }
+          var t = area.value;
+          var block = '\n[image]\n' + res.d.url + '\n[/image]\n';
+          area.value = t + block;
+          fileInput.value = '';
+          area.focus();
+          toast('Image insérée dans la description ✔');
+        });
       };
       reader.readAsDataURL(file);
     });

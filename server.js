@@ -630,6 +630,10 @@ function normalizeProduct(p) {
     options: opts,
     featured: p.featured ? true : false,
     visible: p.visible === undefined ? true : p.visible ? true : false,
+    longDescription: String(p.longDescription || ''),
+    gallery: Array.isArray(p.gallery)
+      ? p.gallery.map((g) => String(g || '').trim()).filter(Boolean)
+      : String(p.gallery || '').split('\n').map((g) => g.trim()).filter(Boolean),
     createdAt: p.createdAt || new Date().toISOString()
   };
 }

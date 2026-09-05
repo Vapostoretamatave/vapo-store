@@ -1,5 +1,39 @@
 [
   {
+    "id": "fa6bbb4f-016a-4f26-91a0-be5bbc80344a",
+    "name": "Kit Aegis Legend 5 Geekvape",
+    "description": "le kit Aegis Legend 5 continue de jouer la carte de la solidité. Certifiée IP68, la box résiste aux chutes, à l'eau, à la poussière : le mod électronique à détenir si vous êtes un aventurier !",
+    "price": 400000,
+    "promoPrice": null,
+    "category": "c2",
+    "subcategory": "sb-kits",
+    "flavor": "",
+    "flavors": [],
+    "marque": "Geekvape",
+    "contenance": "",
+    "taux": "",
+    "image": "/uploads/1788601002102-6ea0a6.jpg",
+    "badge": "",
+    "available": true,
+    "rating": 0,
+    "reviews": 0,
+    "options": [
+      "CARBON BLACK",
+      "TURBO RED",
+      "SILVER"
+    ],
+    "featured": false,
+    "visible": true,
+    "longDescription": "\n\n[image]\n/uploads/1788603083321-470e0c.jpg\n[/image]\nle kit Aegis Legend 5 continue de jouer la carte de la solidité. Certifiée IP68, la box résiste aux chutes, à l'eau, à la poussière : le mod électronique à détenir si vous êtes un aventurier !\n\u000bNécessitant la mise en place de 2 accus 18650, la box Aegis Legend 5 se dote d'un chipset AS Chip 4.0 qui propose une puissance maximale de 200 watts ainsi que les modes Eco, contrôle température, Normal et Smart. Pour gérer ces divers paramètres, les utilisateurs pourront se fier à l'écran positionné sur la face avant de la box.\n\u000bPour compléter son kit Aegis Legend 5, GeekVape a opté pour le clearomiseur Zeus SubOhm 2021. Livré avec un pyrex bulb de 5.5 ml de contenance, ce tank se singularise par sa polyvalence. Le Z SubOhm 2021 est compatible avec les résistances Z : profitez d'énormes nuages de vapeur et de saveurs restituées avec précision.\n\n\n[image]\n/uploads/1788603101194-45af1c.jpg\n[/image]\nAegis Legend 5\nLa box de GeekVape fonctionne avec deux accus au format 18650 et peut développer, grâce au chipset AS Chip 4.0, une puissance considérable de 200 watts. Les vapoteurs pourront également sélectionner les modes Eco, contrôle température, smart et normal. La gestion des paramètres se fait grâce au bouton de réglage positionné sous l'écran ! Pour ne rien gâcher et garantir un transport sécurisé, un bouton de verrouillage est placé sur la tranche de la box Aegis legend 5. \n\n\n[image]\n/uploads/1788603156998-3bf3a4.jpg\n[/image]\nZeus 2021\nLe clearomiseur Zeus SubOhm 2021 présent dans le kit est équipé d'un pyrex bulb de 5.5 ml de contenance. Terriblement généreux, ce tank propose un airflow réglable et un remplissage top-fill. Grâce à sa conception, le Z SubOhm 2021 limite les risques de fuites et assure une production de vapeur maximale. Les adeptes de cloud chasing tomberont sous le charme de ce clearo versatile et terriblement performant.\n[image]\n/uploads/1788603194132-1e73fd.jpg\n[/image]\n",
+    "gallery": [
+      "/uploads/1788600889527-c60aaa.png",
+      "/uploads/1788600889539-e53df8.jpg",
+      "/uploads/1788600889546-c4ce6b.jpg",
+      "/uploads/1788600889554-8728ec.jpg"
+    ],
+    "createdAt": "2026-09-05T09:36:53.675Z"
+  },
+  {
     "id": "2159ddd5-6046-40c9-adaf-8d8a4d4244e8",
     "name": "Enfer Pod kiwi Passion",
     "description": "menthe fraiche ",
