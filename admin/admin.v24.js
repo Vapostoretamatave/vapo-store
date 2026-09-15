@@ -1291,6 +1291,12 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
         '<label>Confirmer le nouveau mot de passe<input type="password" id="newPw2"></label>' +
       '</div><div class="form-actions"><button class="btn btn-primary" id="btnPw">🔑 Changer le mot de passe</button></div>' +
       '<div class="small" style="margin-top:10px">Mot de passe actuel : <b>' + esc(s.adminPassword) + '</b></div></div>' +
+
+      '<div class="card"><h3>💾 Sauvegarde complète</h3>' +
+        '<p class="small" style="margin:0 0 12px">Télécharge tout le site en un seul fichier : produits, commandes, catégories, bannières, réglages, saveurs/marques <b>et toutes les images</b>. Conserve-le sur ton Google Drive ou un disque externe.</p>' +
+        '<div class="form-actions" style="margin:0"><button class="btn btn-primary" id="btnBackup">⬇️ Télécharger la sauvegarde</button></div>' +
+        '<div class="small" style="margin-top:10px">Idéal : une sauvegarde après chaque grosse session de saisie de produits.</div>' +
+      '</div>' +
       '</div>';
 
     /* bind color preview */
@@ -1351,6 +1357,34 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
         if (!res.ok) return toast(res.d.error || 'Erreur', true);
         toast('Mot de passe changé ✔');
         refreshAll();
+      });
+    };
+
+    $('btnBackup').onclick = function () {
+      var btn = $('btnBackup');
+      var old = btn.textContent;
+      btn.textContent = 'Préparation de la sauvegarde…';
+      btn.disabled = true;
+      api('/api/admin/backup', { timeout: 120000 }).then(function (res) {
+        btn.textContent = old;
+        btn.disabled = false;
+        if (!res.ok) return toast(res.d.error || 'Erreur pendant la sauvegarde', true);
+        try {
+          var blob = new Blob([JSON.stringify(res.d, null, 1)], { type: 'application/json' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'vapo-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+          toast('Sauvegarde téléchargée ✔');
+        } catch (e) {
+          toast('Téléchargement impossible : ' + e.message, true);
+        }
+      }, function () {
+        btn.textContent = old;
+        btn.disabled = false;
+        toast('La sauvegarde a pris trop de temps', true);
       });
     };
   }

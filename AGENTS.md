@@ -14,8 +14,8 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - `public/index.html` référence `/app.vN.js` et `/styles.css?v=N`.
 - `admin/index.html` référence `/admin/admin.vN.js` et `/admin/admin.css?v=N`.
 - **Règle** : quand on modifie `public/app.js`, bump vers app.v(N+1) et copier LA SOURCE sur TOUTES les versions numérotées (v5..N+1). Idem admin. Quand on modifie un CSS, bumper son `?v=`.
-- État actuel (à mettre à jour) : boutique = app.v36.js + styles.css?v=28 ; admin = admin.v24.js + admin.css?v=10. Prochains bumps : app.v37, admin.v25, styles.css?v=29, admin.css?v=11 (selon fichiers touchés).
-- Il existe des copies numérotées : public/app.v5..v36.js, admin/admin.v5..v24.js. TOUJOURS resync toutes quand on change la source.
+- État actuel (à mettre à jour) : boutique = app.v36.js + styles.css?v=28 ; admin = admin.v25.js + admin.css?v=10. Prochains bumps : app.v37, admin.v26, styles.css?v=29, admin.css?v=11 (selon fichiers touchés).
+- Il existe des copies numérotées : public/app.v5..v36.js, admin/admin.v5..v25.js. TOUJOURS resync toutes quand on change la source.
 
 ## Structure
 - `server.js` : tout le backend (API, fichiers statiques, auth). `handleApi()`, `normalizeProduct()`, `serveStatic()`.
@@ -33,9 +33,9 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - **Repo GitHub** : `https://github.com/Vapostoretamatave/vapo-store.git` (branche `main`).
 - **Site : https://vapo-store.onrender.com** (forfait Starter, disque persistant 1 Go monté sur `/data`).
 - Mise à jour : `git add .` → `git commit` → `git push origin main` → Render redéploie automatiquement en ~2-3 min.
-- ⚠️ **Workflow DONNÉES (le PC est la source — voir SYNC ci-dessus)** : pour publier des produits modifiés/ajoutés en local, il faut `git add . && git commit && git push origin main` ET **que le serveur en ligne redémarre** (ce que fait Render à chaque push) pour que `syncCatalogToDisk()` les copie sur le disque. Commandes en ligne (orders.json) préservées.
+- ⚠️ **Workflow DONNÉES** : les produits se créent/modifient depuis l'ADMIN EN LIGNE (instantané, rupture de stock/prix). Git ne sert QUE pour le code. Le disque (/data) est la source de vérité et le redéploiement ne l'écrase jamais.
 - **Variables d'env en prod** : `DATA_DIR=/data`, `UPLOAD_DIR=/data/uploads`.
-- Servir fichier : `DATA_DIR`/`UPLOAD_DIR` sont lus depuis l'env en prod, local sinon (voir début de server.js : **SYNCHRO CATALOGUE — le PC (via git) est la SOURCE DE VÉRITÉ**. À chaque redémarrage en prod, `syncCatalogToDisk()` copie `data/` local → `/data` (produits, catégories, bannières, dict, settings) et les images `public/uploads/` → `/data/uploads` (mises à jour si taille différente, jamais supprimées). **Protégés** : `orders.json` (commandes WhatsApp en ligne) et `settings.json.lastOrderNumber` (ne régresse jamais). Donc : modifier/ajouter des produits SE FAIT EN LOCAL puis `git push` → mis en ligne au prochain redéploiement. ⚠️ Ne PAS modifier les produits depuis l'admin EN LIGNE (un futur push écraserait ces modifs par celles du PC).
+- Servir fichier : `DATA_DIR`/`UPLOAD_DIR` sont lus depuis l'env en prod, local sinon (voir début de server.js : **LE DISQUE (/data) EST LA SOURCE DE VÉRITÉ des données**. L'admin EN LIGNE écrit directement dessus (produits, commandes, catégories, bannières, réglages, images). `syncCatalogToDisk()` ne copie `data/` + `public/uploads/` → disque QUE si `settings.json` absent (1er boot d'un disque neuf). Ensuite le redéploiement ne touche JAMAIS au disque → les modifs en ligne ne sont jamais écrasées. ⚠️ **Ne PAS modifier les produits en LOCAL et les pousser** : git = code seulement. Sauvegarde : admin en ligne → Réglages → « 💾 Télécharger la sauvegarde » (`GET /api/admin/backup` : JSON avec produits+commandes+settings+images base64) → à conserver sur Google Drive.
 - Git exécutable : `C:\Program Files\Git\cmd\git.exe` (pas dans le PATH de la session opencode actuelle).
 - Structure des prix Render : Starter ≈ 7$/mois (Web Service) + disque 0,25$/Go/mois. Free = pas de disque (données perdues au restart) + mise en veille après 15 min.
 
