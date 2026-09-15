@@ -17,31 +17,58 @@ for (const d of [DATA_DIR, PUBLIC_DIR, ADMIN_DIR, UPLOAD_DIR]) {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 }
 
-// En production (DATA_DIR != local), on amène la base existante sur le disque
-// persistant au premier démarrage pour ne pas repartir vide.
+// En production (DATA_DIR != local), le PC (via git) est la SOURCE DE VERITE
+// pour le catalogue (produits, catégories, bannières, dict) et les images.
+// À chaque redémarrage on synchronise local -> disque persistant.
+// Les fichiers runtime (orders.json, settings.json lastOrderNumber) restent sur
+// le disque et ne sont jamais écrasés.
+const RUNTIME_ONLY = new Set(['orders.json']);
+
+function syncCatalogToDisk() {
+  if (fs.existsSync(LOCAL_DATA_DIR)) {
+    fs.readdirSync(LOCAL_DATA_DIR).forEach((f) => {
+      const src = path.join(LOCAL_DATA_DIR, f);
+      if (!fs.statSync(src).isFile()) return;
+      if (RUNTIME_ONLY.has(f)) return;
+      const dst = path.join(DATA_DIR, f);
+      if (f === 'settings.json') {
+        // Conserver le dernier numéro de commande vu sur le disque (ne jamais régresse)
+        let lastOrderNumber = 0;
+        try {
+          lastOrderNumber = JSON.parse(fs.readFileSync(dst, 'utf8')).lastOrderNumber || 0;
+        } catch (e) { /* fichier absent ou invalide : on repart du local */ }
+        try {
+          const store = JSON.parse(fs.readFileSync(src, 'utf8'));
+          if (store && typeof store === 'object') {
+            store.lastOrderNumber = Math.max(lastOrderNumber, Number(store.lastOrderNumber) || 0);
+            fs.writeFileSync(dst, JSON.stringify(store, null, 2));
+            return;
+          }
+        } catch (e) { /* settings local invalide : on copie tel quel */ }
+        fs.copyFileSync(src, dst);
+        return;
+      }
+      fs.copyFileSync(src, dst);
+    });
+  }
+  if (fs.existsSync(LOCAL_UPLOAD_DIR) && UPLOAD_DIR !== LOCAL_UPLOAD_DIR) {
+    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    fs.readdirSync(LOCAL_UPLOAD_DIR).forEach((f) => {
+      const src = path.join(LOCAL_UPLOAD_DIR, f);
+      if (!fs.statSync(src).isFile()) return;
+      const dst = path.join(UPLOAD_DIR, f);
+      if (!fs.existsSync(dst) || fs.statSync(src).size !== fs.statSync(dst).size) {
+        fs.copyFileSync(src, dst);
+      }
+    });
+  }
+}
+
 if (DATA_DIR !== LOCAL_DATA_DIR) {
   try {
-    if (!fs.existsSync(path.join(DATA_DIR, 'settings.json'))) {
-      if (fs.existsSync(LOCAL_DATA_DIR)) {
-        fs.readdirSync(LOCAL_DATA_DIR).forEach((f) => {
-          const src = path.join(LOCAL_DATA_DIR, f);
-          if (fs.statSync(src).isFile()) {
-            fs.copyFileSync(src, path.join(DATA_DIR, f));
-          }
-        });
-      }
-      if (fs.existsSync(LOCAL_UPLOAD_DIR) && UPLOAD_DIR !== LOCAL_UPLOAD_DIR) {
-        if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-        fs.readdirSync(LOCAL_UPLOAD_DIR).forEach((f) => {
-          const src = path.join(LOCAL_UPLOAD_DIR, f);
-          if (fs.statSync(src).isFile() && !fs.existsSync(path.join(UPLOAD_DIR, f))) {
-            fs.copyFileSync(src, path.join(UPLOAD_DIR, f));
-          }
-        });
-      }
-    }
+    syncCatalogToDisk();
   } catch (e) {
-    console.error('seed err', e);
+    console.error('sync err', e);
   }
 }
 

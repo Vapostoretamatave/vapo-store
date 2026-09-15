@@ -33,8 +33,9 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - **Repo GitHub** : `https://github.com/Vapostoretamatave/vapo-store.git` (branche `main`).
 - **Site : https://vapo-store.onrender.com** (forfait Starter, disque persistant 1 Go monté sur `/data`).
 - Mise à jour : `git add .` → `git commit` → `git push origin main` → Render redéploie automatiquement en ~2-3 min.
+- ⚠️ **Workflow DONNÉES (le PC est la source — voir SYNC ci-dessus)** : pour publier des produits modifiés/ajoutés en local, il faut `git add . && git commit && git push origin main` ET **que le serveur en ligne redémarre** (ce que fait Render à chaque push) pour que `syncCatalogToDisk()` les copie sur le disque. Commandes en ligne (orders.json) préservées.
 - **Variables d'env en prod** : `DATA_DIR=/data`, `UPLOAD_DIR=/data/uploads`.
-- Servir fichier : `DATA_DIR`/`UPLOAD_DIR` sont lus depuis l'env en prod, local sinon (voir début de server.js : LOGIQUE DE SEED — au 1er boot en prod, si `/data/settings.json` absent, copie `data/` + `public/uploads/` vers le disque).
+- Servir fichier : `DATA_DIR`/`UPLOAD_DIR` sont lus depuis l'env en prod, local sinon (voir début de server.js : **SYNCHRO CATALOGUE — le PC (via git) est la SOURCE DE VÉRITÉ**. À chaque redémarrage en prod, `syncCatalogToDisk()` copie `data/` local → `/data` (produits, catégories, bannières, dict, settings) et les images `public/uploads/` → `/data/uploads` (mises à jour si taille différente, jamais supprimées). **Protégés** : `orders.json` (commandes WhatsApp en ligne) et `settings.json.lastOrderNumber` (ne régresse jamais). Donc : modifier/ajouter des produits SE FAIT EN LOCAL puis `git push` → mis en ligne au prochain redéploiement. ⚠️ Ne PAS modifier les produits depuis l'admin EN LIGNE (un futur push écraserait ces modifs par celles du PC).
 - Git exécutable : `C:\Program Files\Git\cmd\git.exe` (pas dans le PATH de la session opencode actuelle).
 - Structure des prix Render : Starter ≈ 7$/mois (Web Service) + disque 0,25$/Go/mois. Free = pas de disque (données perdues au restart) + mise en veille après 15 min.
 
