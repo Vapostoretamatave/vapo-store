@@ -11,8 +11,12 @@
     facet: 'sub',
     search: '',
     promoOnly: false,
-    sort: 'pertinence'
+    sort: 'pertinence',
+    page: 1
   };
+
+  var PAGE_SIZE = 18;
+  var lastPageSig = '';
 
   function readHash() {
     var h = location.hash.replace(/^#\/?/, '');
@@ -601,6 +605,11 @@
     var list = visibleProducts();
     var grid = $('grid');
     $('empty').hidden = list.length > 0;
+    var sig = state.category + '|' + state.facet + '|' + state.subcategory + '|' + state.search + '|' + state.promoOnly + '|' + state.sort;
+    if (sig !== lastPageSig) { state.page = 1; lastPageSig = sig; }
+    var totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (state.page > totalPages) state.page = totalPages;
+    var view = list.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
     var catT = state.category === 'all' ? 'Tous les produits' : catName(state.category);
     $('sectionTitle').textContent = catT;
     var subCount = '';
@@ -613,7 +622,7 @@
     var fLbl = state.subcategory ? (state.facet !== 'sub' ? state.subcategory : subName(state.subcategory)) : '';
     $('filterBtn').textContent = fLbl ? 'Filtrer · ' + fLbl + ' ▾' : 'Filtrer ▾';
     applyNavActive();
-    grid.innerHTML = list.map(function (p) {
+    grid.innerHTML = view.map(function (p) {
       var badge = '';
       if (p.badge) {
         var bcol = /promo|prix/i.test(p.badge) ? 'red' : /nouveaut/i.test(p.badge) ? 'blue' : '';
@@ -655,6 +664,30 @@
       });
     });
     writeHash();
+    renderPager(totalPages);
+  }
+
+  function renderPager(totalPages) {
+    var pager = $('pager');
+    if (totalPages <= 1) { pager.innerHTML = ''; return; }
+    var cur = state.page;
+    var html = '<button type="button" class="pager-btn" data-p="' + (cur - 1) + '"' + (cur <= 1 ? ' disabled' : '') + '>‹</button>';
+    var from = Math.max(1, cur - 2), to = Math.min(totalPages, cur + 2);
+    if (from > 1) html += '<button type="button" class="pager-btn" data-p="1">1</button>' + (from > 2 ? '<span class="pager-dots">…</span>' : '');
+    for (var p = from; p <= to; p++) {
+      html += '<button type="button" class="pager-btn' + (p === cur ? ' on' : '') + '" data-p="' + p + '">' + p + '</button>';
+    }
+    if (to < totalPages) html += (to < totalPages - 1 ? '<span class="pager-dots">…</span>' : '') + '<button type="button" class="pager-btn" data-p="' + totalPages + '">' + totalPages + '</button>';
+    html += '<button type="button" class="pager-btn" data-p="' + (cur + 1) + '"' + (cur >= totalPages ? ' disabled' : '') + '>›</button>';
+    pager.innerHTML = html;
+    pager.querySelectorAll('.pager-btn[data-p]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.disabled) return;
+        state.page = parseInt(b.getAttribute('data-p'), 10);
+        renderProducts();
+        document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
   }
 
   /* ---------------- Product modal ---------------- */
