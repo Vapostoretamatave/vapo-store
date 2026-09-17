@@ -14,9 +14,10 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - `public/index.html` référence `/app.vN.js` et `/styles.css?v=N`.
 - `admin/index.html` référence `/admin/admin.vN.js` et `/admin/admin.css?v=N`.
 - **Règle** : quand on modifie `public/app.js`, bump vers app.v(N+1) et copier LA SOURCE sur TOUTES les versions numérotées (v5..N+1). Idem admin. Quand on modifie un CSS, bumper son `?v=`.
-- État actuel (à mettre à jour) : boutique = app.v38.js + styles.css?v=29 ; admin = admin.v27.js + admin.css?v=10. Prochains bumps : app.v39, admin.v28, styles.css?v=30, admin.css?v=11 (selon fichiers touchés).
+- État actuel (à mettre à jour) : boutique = app.v38.js + styles.css?v=30 ; admin = admin.v27.js + admin.css?v=10. Prochains bumps : app.v39, admin.v28, styles.css?v=31, admin.css?v=11 (selon fichiers touchés).
 - Il existe des copies numérotées : public/app.v5..v38.js, admin/admin.v5..v27.js. TOUJOURS resync toutes quand on change la source.
 - **Pagination boutique (app.v38 / styles.css?v=29)** : grille paginée 18 produits/page (`PAGE_SIZE`), barre `‹ 1 2 3 … ›` (`renderPager()` + `#pager`). Page reset à 1 quand la signature des filtres change (catégorie/sous-cat/facet/recherche/promo/tri). Hash inchangé.
+- **Barre nav mobile défilable (styles.css?v=30)** : `.nav` n'est plus masqué sous 860px (était `display:none`) → s'affiche sous le header sticky, défilable gauche/droite déjà géré par `.nav-inner` (overflow-x auto + scrollbar cachée). Cliquer une catégorie = afficher TOUS ses produits (selectCategory 'sub'=''), filtre ensuite via bouton Filtrer/burger.
 
 ## Structure
 - `server.js` : tout le backend (API, fichiers statiques, auth). `handleApi()`, `normalizeProduct()`, `serveStatic()`.

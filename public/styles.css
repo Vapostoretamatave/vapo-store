@@ -531,7 +531,8 @@ form textarea { min-height: 70px; resize: vertical; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 860px) {
-  .nav { display: none; }
+  .nav { display: block; border-top: 1px solid rgba(255,255,255,0.08); }
+  .nav-link { padding: 10px 14px; font-size: 13px; }
   .burger { display: inline-flex; order: 1; }
   .brand { flex: 1; justify-content: center; order: 2; text-align: center; }
   .brand-tag { display: none; }
