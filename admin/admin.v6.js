@@ -412,6 +412,9 @@ var $ = function (id) { return document.getElementById(id); };
     $('p_image').value = p ? p.image : '';
     $('p_imageImg').src = p ? p.image : '';
     $('p_options').value = p && p.options && p.options.length ? p.options.join('\n') : '';
+    $('p_optionImages').value = p && p.optionImages && typeof p.optionImages === 'object'
+      ? Object.keys(p.optionImages).map(function (k) { return k + ' → ' + p.optionImages[k]; }).join('\n')
+      : '';
     $('p_description').value = p ? p.description || '' : '';
     $('p_longDescription').value = p ? p.longDescription || '' : '';
     $('p_gallery').value = p && p.gallery && p.gallery.length ? p.gallery.join('\n') : '';
@@ -602,6 +605,14 @@ var $ = function (id) { return document.getElementById(id); };
       description: $('p_description').value,
       longDescription: $('p_longDescription').value,
       gallery: $('p_gallery').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
+      optionImages: $('p_optionImages').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).reduce(function (acc, line) {
+        var parts = line.split('→');
+        if (parts.length < 2) return acc;
+        var k = parts[0].trim();
+        var v = parts.slice(1).join('→').trim();
+        if (k && v) acc[k] = v;
+        return acc;
+      }, {}),
       featured: $('p_featured').checked,
       visible: $('p_visible').checked
     };

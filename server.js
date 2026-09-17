@@ -667,6 +667,13 @@ function normalizeProduct(p) {
     gallery: Array.isArray(p.gallery)
       ? p.gallery.map((g) => String(g || '').trim()).filter(Boolean)
       : String(p.gallery || '').split('\n').map((g) => g.trim()).filter(Boolean),
+    optionImages: p.optionImages && typeof p.optionImages === 'object' && !Array.isArray(p.optionImages)
+      ? Object.keys(p.optionImages).reduce(function (acc, k) {
+          const v = String(p.optionImages[k] || '').trim();
+          if (String(k).trim() && v) acc[String(k).trim()] = v;
+          return acc;
+        }, {})
+      : {},
     createdAt: p.createdAt || new Date().toISOString()
   };
 }

@@ -687,6 +687,8 @@
           optEl.querySelectorAll('.opt-btn').forEach(function (x) { x.classList.remove('on'); });
           b.classList.add('on');
           optionCache[id] = b.getAttribute('data-opt');
+          var optImg = imageForOption(p, b.getAttribute('data-opt'));
+          if (optImg) $('pmImage').src = optImg;
         });
       });
     } else {
@@ -720,6 +722,14 @@
   function galleryFor(p) {
     var imgs = [p.image].concat(p.gallery || []).filter(function (u) { return !!u; });
     return imgs;
+  }
+
+  function imageForOption(p, opt) {
+    if (p && p.optionImages && typeof p.optionImages === 'object') {
+      var v = p.optionImages[opt];
+      if (v && String(v).trim()) return String(v).trim();
+    }
+    return '';
   }
 
   function renderDetailDesc(raw) {
@@ -787,6 +797,8 @@
           optEl.querySelectorAll('.opt-btn').forEach(function (x) { x.classList.remove('on'); });
           b.classList.add('on');
           optionCache[id] = b.getAttribute('data-opt');
+          var optImg = imageForOption(p, b.getAttribute('data-opt'));
+          if (optImg) $('dlMain').src = optImg;
         });
       });
     } else {
