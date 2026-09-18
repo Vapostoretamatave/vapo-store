@@ -391,27 +391,38 @@ async function handleApi(req, res, pathname) {
       }
 
       if (m === 'GET' && pathname === '/api/admin/backup') {
-        const uploads = {};
-        try {
-          if (fs.existsSync(UPLOAD_DIR)) {
-            fs.readdirSync(UPLOAD_DIR).forEach((f) => {
-              const p = path.join(UPLOAD_DIR, f);
-              if (fs.statSync(p).isFile() && !f.startsWith('.')) {
-                uploads[f] = fs.readFileSync(p).toString('base64');
-              }
-            });
-          }
-        } catch (e) { /* certains fichiers peuvent échouer, on continue */ }
-        return sendJSON(res, 200, {
+        const head = {
           date: new Date().toISOString(),
           settings: getSettings(),
           categories: readData('categories.json', []),
           products: readData('products.json', []),
           orders: readData('orders.json', []),
           banners: readData('banners.json', []),
-          dict: getDict(),
-          uploads: uploads
+          dict: getDict()
+        };
+        res.on('error', () => { /* connexion coupée, on arrête d'écrire */ });
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store'
         });
+        res.write(JSON.stringify(head).slice(0, -1) + ',"uploads":{');
+        let first = true;
+        try {
+          if (fs.existsSync(UPLOAD_DIR)) {
+            fs.readdirSync(UPLOAD_DIR).forEach((f) => {
+              const p = path.join(UPLOAD_DIR, f);
+              let st;
+              try { st = fs.statSync(p); } catch (e) { return; }
+              if (st.isFile() && !f.startsWith('.')) {
+                res.write((first ? '' : ',') + JSON.stringify(f) + ':' + JSON.stringify(fs.readFileSync(p).toString('base64')));
+                first = false;
+              }
+            });
+          }
+        } catch (e) { /* certains fichiers peuvent échouer, on continue */ }
+        res.write('}}');
+        res.end();
+        return;
       }
 
       if (m === 'PUT' && pathname === '/api/admin/settings') {
