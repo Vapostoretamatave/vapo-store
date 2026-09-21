@@ -18,6 +18,13 @@
   var PAGE_SIZE = 18;
   var lastPageSig = '';
 
+  var TOKEN_FACET = { sub: 'sub', saveur: 'flavor', marque: 'marque', contenance: 'contenance', taux: 'taux' };
+
+  function facetToken(f) {
+    if (f === 'flavor') return 'saveur';
+    return f || 'sub';
+  }
+
   function readHash() {
     var h = location.hash.replace(/^#\/?/, '');
     state.promoOnly = false;
@@ -25,8 +32,9 @@
     var parts = h.split('/');
     if (parts[0] === 'cat' && parts[1]) {
       state.category = parts[1];
-      state.facet = 'sub';
-      state.subcategory = (parts[2] === 'sub' && parts[3]) ? parts[3] : '';
+      var tok2 = parts[2] || 'sub';
+      state.facet = TOKEN_FACET[tok2] || 'sub';
+      state.subcategory = (parts[3] !== undefined) ? decodeURIComponent(parts.slice(3).join('/')) : '';
       state.search = '';
       $('searchInput').value = '';
       renderProducts();
@@ -34,15 +42,31 @@
     } else if (parts[0] === 'marque' && parts[1]) {
       state.category = 'all';
       state.facet = 'marque';
-      state.subcategory = decodeURIComponent(parts[1]);
+      state.subcategory = decodeURIComponent(parts.slice(1).join('/'));
+      state.search = '';
+      $('searchInput').value = '';
+      renderProducts();
+      document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+    } else if (parts[0] === 'contenance' && parts[1]) {
+      state.category = 'all';
+      state.facet = 'contenance';
+      state.subcategory = decodeURIComponent(parts.slice(1).join('/'));
+      state.search = '';
+      $('searchInput').value = '';
+      renderProducts();
+      document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+    } else if (parts[0] === 'taux' && parts[1]) {
+      state.category = 'all';
+      state.facet = 'taux';
+      state.subcategory = decodeURIComponent(parts.slice(1).join('/'));
       state.search = '';
       $('searchInput').value = '';
       renderProducts();
       document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
     } else if (parts[0] === 'saveur' && parts[1]) {
       state.category = 'all';
-      state.facet = 'saveur';
-      state.subcategory = decodeURIComponent(parts[1]);
+      state.facet = 'flavor';
+      state.subcategory = decodeURIComponent(parts.slice(1).join('/'));
       state.search = '';
       $('searchInput').value = '';
       renderProducts();
@@ -75,9 +99,9 @@
       h = 'promo';
     } else if (state.category !== 'all') {
       h = 'cat/' + state.category;
-      if (state.subcategory) h += '/sub/' + state.subcategory;
+      if (state.subcategory) h += '/' + facetToken(state.facet) + '/' + encodeURIComponent(state.subcategory);
     } else if (state.facet && state.facet !== 'sub' && state.subcategory) {
-      h = state.facet + '/' + state.subcategory;
+      h = facetToken(state.facet) + '/' + encodeURIComponent(state.subcategory);
     } else if (state.search) {
       h = 'search/' + state.search;
     }
@@ -144,10 +168,10 @@
   }
 
   var DIMS = [
-    { key: 'flavor', label: '🌶 Par saveur', menu: true },
+    { key: 'flavor', label: '🍓 Par saveur', menu: true },
+    { key: 'taux', label: '🧪 Par taux de nicotine', menu: true },
     { key: 'marque', label: '🏷 Par marque', menu: true },
-    { key: 'contenance', label: '📏 Par contenance', menu: true },
-    { key: 'taux', label: '💉 Par taux de nicotine' }
+    { key: 'contenance', label: '📏 Par contenance', menu: true }
   ];
 
   var DIM_ARR = {
