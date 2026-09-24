@@ -1313,6 +1313,12 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
         '<div class="form-actions" style="margin:0"><button class="btn btn-primary" id="btnBackup">⬇️ Télécharger la sauvegarde</button></div>' +
         '<div class="small" style="margin-top:10px">Idéal : une sauvegarde après chaque grosse session de saisie de produits.</div>' +
       '</div>' +
+
+      '<div class="card"><h3>🗜️ Optimiser les images (pour les clients 3G)</h3>' +
+        '<p class="small" style="margin:0 0 12px">Compresse <b>toutes les images</b> du site (produits, galeries, bannières, logo). Les PNG deviennent des JPEG légers (fond blanc), les formats transparents sont conservés. La même photo passe de ~1,4 Mo à ~150 ko : la boutique se charge beaucoup plus vite sur mobile. <b>Les liens des images ne changent pas</b>.</p>' +
+        '<div class="form-actions" style="margin:0"><button class="btn btn-primary" id="btnCompress">🗜️ Compresser toutes les images</button></div>' +
+        '<div class="small" style="margin-top:10px" id="compressInfo">À faire une fois. Ensuite, les nouvelles images sont compressées automatiquement à l\'upload.</div>' +
+      '</div>' +
       '</div>';
 
     /* bind color preview */
@@ -1401,6 +1407,28 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
         btn.textContent = old;
         btn.disabled = false;
         toast('La sauvegarde a pris trop de temps', true);
+      });
+    };
+
+    $('btnCompress').onclick = function () {
+      var btn = $('btnCompress');
+      var info = $('compressInfo');
+      var old = btn.textContent;
+      btn.textContent = 'Compression en cours…';
+      btn.disabled = true;
+      info.textContent = 'Traitement de toutes les images, patientez…';
+      api('/api/admin/compress-images', { method: 'POST', timeout: 300000 }).then(function (res) {
+        btn.textContent = old;
+        btn.disabled = false;
+        if (!res.ok) return toast(res.d.error || 'Erreur pendant la compression', true);
+        var saved = (res.d.savedBytes / 1024 / 1024).toFixed(2);
+        info.textContent = '✔ ' + res.d.done + ' image(s) compressée(s) (« ' + (res.d.skipped) + ' déjà légères, ' + (res.d.failed) + ' erreur(s) »). ' + saved + ' Mo gagnés. Le site est déjà plus rapide.';
+        toast('Compression terminée ✔');
+      }, function () {
+        btn.textContent = old;
+        btn.disabled = false;
+        info.textContent = 'La compression a pris trop de temps. Relance-la, elle reprend là où elle s\'est arrêtée.';
+        toast('La compression a pris trop de temps', true);
       });
     };
   }

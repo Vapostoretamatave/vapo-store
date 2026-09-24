@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+let sharp = null;
+try { sharp = require('sharp'); } catch (e) { sharp = null; }
+
 const ROOT = __dirname;
 const LOCAL_DATA_DIR = path.join(ROOT, 'data');
 const LOCAL_UPLOAD_DIR = path.join(ROOT, 'public', 'uploads');
@@ -198,6 +201,48 @@ async function serveStatic(rootDir, pathname, res) {
   } catch (e) {
     sendJSON(res, 404, { error: 'Introuvable' });
   }
+}
+
+const IMG_MAX_WIDTH = 1000;
+const IMG_QUALITY = 90;
+
+async function hasRealTransparency(buf) {
+  const meta = await sharp(buf).metadata();
+  if (!meta.hasAlpha) return false;
+  const r = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+  const ch = r.info.channels;
+  if (ch < 4) return false;
+  for (let i = 3; i < r.data.length; i += ch) {
+    if (r.data[i] < 250) return true;
+  }
+  return false;
+}
+
+async function optimizeImage(buf, origExt) {
+  if (!sharp) return { buf, ext: origExt, changed: false };
+  let meta;
+  try { meta = await sharp(buf).metadata(); } catch (e) { return { buf, ext: origExt, changed: false }; }
+  const fmt = String(meta.format || '').toLowerCase();
+  if (fmt === 'svg' || fmt === 'gif') return { buf, ext: origExt, changed: false };
+  let keepPng = false;
+  try { keepPng = await hasRealTransparency(buf); } catch (e) { /* JPEG par defaut */ }
+  let pipeline = sharp(buf).rotate();
+  if (meta.width && meta.width > IMG_MAX_WIDTH) {
+    pipeline = pipeline.resize({ width: IMG_MAX_WIDTH, withoutEnlargement: true });
+  }
+  let outBuf;
+  let outExt;
+  try {
+    if (keepPng) {
+      outBuf = await pipeline.png({ compressionLevel: 9, effort: 10 }).toBuffer();
+      outExt = '.png';
+    } else {
+      outBuf = await pipeline.flatten({ background: '#ffffff' }).jpeg({ quality: IMG_QUALITY, mozjpeg: true }).toBuffer();
+      outExt = '.jpg';
+    }
+  } catch (e) { return { buf, ext: origExt, changed: false }; }
+  if (outBuf.length >= buf.length) return { buf, ext: origExt, changed: false };
+  return { buf: outBuf, ext: outExt, changed: true };
 }
 
 function methodLabel(m) {
@@ -440,6 +485,51 @@ async function handleApi(req, res, pathname) {
         return sendJSON(res, 200, { ok: true, settings: next });
       }
 
+      if (m === 'POST' && pathname === '/api/admin/compress-images') {
+        if (!fs.existsSync(UPLOAD_DIR)) return sendJSON(res, 200, { ok: true, done: 0, skipped: 0, saved: 0 });
+        const replaceRefs = (oldUrl, newUrl) => {
+          const files = ['products.json', 'banners.json', 'settings.json'];
+          for (const f of files) {
+            const p = path.join(DATA_DIR, f);
+            let txt;
+            try { txt = fs.readFileSync(p, 'utf8'); } catch (e) { continue; }
+            if (!txt.includes(oldUrl)) continue;
+            fs.writeFileSync(p, txt.split(oldUrl).join(newUrl));
+          }
+        };
+        let done = 0, skipped = 0, savedBytes = 0, failed = 0;
+        const files = fs.readdirSync(UPLOAD_DIR);
+        for (const f of files) {
+          if (f.startsWith('.')) continue;
+          const origExt = path.extname(f).toLowerCase();
+          if (!['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(origExt)) { skipped++; continue; }
+          const fp = path.join(UPLOAD_DIR, f);
+          let buf;
+          try { buf = fs.readFileSync(fp); } catch (e) { failed++; continue; }
+          let resOpt;
+          try { resOpt = await optimizeImage(buf, origExt); } catch (e) { failed++; continue; }
+          if (!resOpt.changed) { skipped++; continue; }
+          let newName = f;
+          if (resOpt.ext !== origExt) {
+            newName = f.replace(/\.[^.]+$/, '') + resOpt.ext;
+            if (newName !== f) {
+              const newFp = path.join(UPLOAD_DIR, newName);
+              if (fs.existsSync(newFp)) { skipped++; continue; }
+              fs.writeFileSync(newFp, resOpt.buf);
+              replaceRefs('/uploads/' + f, '/uploads/' + newName);
+              try { fs.unlinkSync(fp); } catch (e) { /* on ignore */ }
+            } else {
+              fs.writeFileSync(fp, resOpt.buf);
+            }
+          } else {
+            fs.writeFileSync(fp, resOpt.buf);
+          }
+          savedBytes += (buf.length - resOpt.buf.length);
+          done++;
+        }
+        return sendJSON(res, 200, { ok: true, done, skipped, failed, savedBytes, total: files.length });
+      }
+
       if (m === 'POST' && pathname === '/api/admin/dict') {
         const body = await parseJSON(req);
         const clean = (arr) => {
@@ -618,10 +708,16 @@ async function handleApi(req, res, pathname) {
         } catch (e) {
           return sendJSON(res, 400, { error: 'Image invalide' });
         }
-        let ext = path.extname(String(body.name || '')).toLowerCase();
+        const origExt = path.extname(String(body.name || '')).toLowerCase();
+        let ext = origExt;
         if (!['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext)) ext = '.png';
+        let finalBuf = buf;
+        try {
+          const opt = await optimizeImage(buf, ext);
+          if (opt.changed) { finalBuf = opt.buf; ext = opt.ext; }
+        } catch (e) { /* on garde l'original si echec */ }
         const finalName = Date.now() + '-' + crypto.randomBytes(3).toString('hex') + ext;
-        fs.writeFileSync(path.join(UPLOAD_DIR, finalName), buf);
+        fs.writeFileSync(path.join(UPLOAD_DIR, finalName), finalBuf);
         return sendJSON(res, 200, { url: '/uploads/' + finalName });
       }
 

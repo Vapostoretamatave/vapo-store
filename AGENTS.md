@@ -14,8 +14,8 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - `public/index.html` référence `/app.vN.js` et `/styles.css?v=N`.
 - `admin/index.html` référence `/admin/admin.vN.js` et `/admin/admin.css?v=N`.
 - **Règle** : quand on modifie `public/app.js`, bump vers app.v(N+1) et copier LA SOURCE sur TOUTES les versions numérotées (v5..N+1). Idem admin. Quand on modifie un CSS, bumper son `?v=`.
-- État actuel (à mettre à jour) : boutique = app.v39.js + styles.css?v=30 ; admin = admin.v27.js + admin.css?v=10. Prochains bumps : admin.v28, styles.css?v=31, admin.css?v=11 (selon fichiers touchés).
-- Il existe des copies numérotées : public/app.v5..v39.js, admin/admin.v5..v27.js. TOUJOURS resync toutes quand on change la source.
+- État actuel (à mettre à jour) : boutique = app.v39.js + styles.css?v=30 ; admin = admin.v28.js + admin.css?v=10. Prochains bumps : admin.v29, styles.css?v=31, admin.css?v=11 (selon fichiers touchés).
+- Il existe des copies numérotées : public/app.v5..v39.js, admin/admin.v5..v28.js. TOUJOURS resync toutes quand on change la source.
 - **Pagination boutique (app.v38 / styles.css?v=29)** : grille paginée 18 produits/page (`PAGE_SIZE`), barre `‹ 1 2 3 … ›` (`renderPager()` + `#pager`). Page reset à 1 quand la signature des filtres change (catégorie/sous-cat/facet/recherche/promo/tri). Hash inchangé.
 - **Barre nav mobile défilable (styles.css?v=30)** : `.nav` n'est plus masqué sous 860px (était `display:none`) → s'affiche sous le header sticky, défilable gauche/droite déjà géré par `.nav-inner` (overflow-x auto + scrollbar cachée). Cliquer une catégorie = afficher TOUS ses produits (selectCategory 'sub'=''), filtre ensuite via bouton Filtrer/burger.
 
@@ -56,6 +56,7 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - Logo → accueil (goHome) ; zoom mobile (16px recherche, touch-action); checkout livraison/retrait → WhatsApp avec mention méthode ; frais de livraison « À confirmer ».
 - Catégories/sous-catégories réordonnables dans admin (endpoint PUT /api/admin/categories/order).
 - Bannière/hero : état.state via renderHero ; ordre des bannières réordonnable.
+- **Optimisation images 3G (admin.v28 / server.js)** : dépendance `sharp` ajoutée (`npm install`). À l'upload (`POST /api/admin/upload`), chaque image est **compressée automatiquement** : max 1000 px de large, JPEG qualité 90 (fond blanc aplati) ou PNG optimisé si vraie transparence. Endpoint admin `POST /api/admin/compress-images` = traitement **en masse** des images déjà en ligne (disque) : convertit les PNG opaques en JPEG (~-90% de poids), renomme `.png`→`.jpg` et met à jour les références dans products.json/banners.json/settings.json (`replaceRefs`). Bouton « 🗜️ Optimiser les images » dans l'admin → Réglages. Recommandé : faire la sauvegarde complète avant.
 
 ## Commandes utiles
 - Backups rapides : copier `data/` et `public/uploads/` avant un test destructif.
