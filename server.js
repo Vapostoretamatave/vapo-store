@@ -356,7 +356,9 @@ async function handleApi(req, res, pathname) {
         const p = products.find((x) => x.id === it.productId);
         if (!p) return sendJSON(res, 400, { error: 'Produit introuvable dans le panier' });
         if (p.available === false) return sendJSON(res, 400, { error: 'Produit en rupture de stock : ' + p.name });
-        const uprice = p.promoPrice != null && p.promoPrice !== '' ? Number(p.promoPrice) : Number(p.price);
+        const uprice = (p.optionPrices && typeof p.optionPrices === 'object' && p.optionPrices[it.option] != null)
+          ? Number(p.optionPrices[it.option])
+          : (p.promoPrice != null && p.promoPrice !== '' ? Number(p.promoPrice) : Number(p.price));
         const qty = Math.max(1, parseInt(it.qty, 10) || 1);
         lines.push({
           name: p.name,
@@ -730,6 +732,38 @@ async function handleApi(req, res, pathname) {
   }
 }
 
+function parseOptionPrices(src) {
+  const out = {};
+  if (src && typeof src === 'object' && !Array.isArray(src)) {
+    Object.keys(src).forEach((k) => {
+      const key = String(k).trim();
+      const n = parseFloat(String(src[k] || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+      if (key && !isNaN(n) && n > 0) out[key] = Number(n.toFixed(2));
+    });
+  } else {
+    String(src || '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        let m = line.match(/^(.*?)(?:→|->)\s*([\d\s.,]+)$/);
+        if (m) {
+          const key = m[1].trim();
+          const n = parseFloat(m[2].replace(/[^\d.,]/g, '').replace(',', '.'));
+          if (key && !isNaN(n) && n > 0) out[key] = Number(n.toFixed(2));
+          return;
+        }
+        m = line.match(/^(.*?)\s+(\d[\d\s.,]*)$/);
+        if (m) {
+          const key = m[1].trim();
+          const n = parseFloat(m[2].replace(/[^\d.,]/g, '').replace(',', '.'));
+          if (key && !isNaN(n) && n > 0) out[key] = Number(n.toFixed(2));
+        }
+      });
+  }
+  return out;
+}
+
 function normalizeProduct(p) {
   const num = (v) => {
     const n = parseFloat(v);
@@ -781,6 +815,7 @@ function normalizeProduct(p) {
           return acc;
         }, {})
       : {},
+    optionPrices: parseOptionPrices(p.optionPrices),
     createdAt: p.createdAt || new Date().toISOString()
   };
 }

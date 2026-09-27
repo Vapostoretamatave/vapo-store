@@ -415,6 +415,9 @@ var $ = function (id) { return document.getElementById(id); };
     $('p_optionImages').value = p && p.optionImages && typeof p.optionImages === 'object'
       ? Object.keys(p.optionImages).map(function (k) { return k + ' ' + p.optionImages[k]; }).join('\n')
       : '';
+    $('p_optionPrices').value = p && p.optionPrices && typeof p.optionPrices === 'object'
+      ? Object.keys(p.optionPrices).map(function (k) { return k + ' ' + p.optionPrices[k]; }).join('\n')
+      : '';
     $('p_description').value = p ? p.description || '' : '';
     $('p_longDescription').value = p ? p.longDescription || '' : '';
     $('p_gallery').value = p && p.gallery && p.gallery.length ? p.gallery.join('\n') : '';
@@ -616,6 +619,19 @@ var $ = function (id) { return document.getElementById(id); };
           if (m) m = [m[1].trim(), m[2].trim()];
         }
         if (m && m[0] && m[1]) acc[m[0]] = m[1];
+        return acc;
+      }, {}),
+      optionPrices: $('p_optionPrices').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).reduce(function (acc, line) {
+        var m;
+        if (line.indexOf('→') !== -1) {
+          var parts = line.split('→');
+          if (parts.length < 2) return acc;
+          m = [parts[0].trim(), parts.slice(1).join('→').trim()];
+        } else {
+          m = line.match(/^(.*?)\s+(\d[\d\s.,]*)$/);
+          if (m) m = [m[1].trim(), m[2].trim()];
+        }
+        if (m && m[0] && m[1] && !isNaN(parseFloat(String(m[1]).replace(/[^\d.,]/g, '').replace(',', '.')))) acc[m[0]] = m[1];
         return acc;
       }, {}),
       featured: $('p_featured').checked,

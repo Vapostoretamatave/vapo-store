@@ -725,14 +725,7 @@
     $('pmImage').src = p.image;
     $('pmName').textContent = p.name;
     $('pmRating').innerHTML = p.rating ? stars(p.rating) + ' ' + p.rating.toFixed(1) + ' (' + (p.reviews || 0) + ' avis)' : 'Nouveau produit';
-    if (p.promoPrice != null && p.promoPrice !== '') {
-      var pct = discountPct(p);
-      $('pmPrice').innerHTML = '<span class="old">' + fmt(p.price) + '</span>' +
-        '<span class="pm-promo">' + fmt(p.promoPrice) + '</span>' +
-        (pct ? '<span class="discount-badge">-' + pct + '</span>' : '');
-    } else {
-      $('pmPrice').textContent = fmt(p.price);
-    }
+    renderOptionPrice($('pmPrice'), p, optionCache[id]);
     $('pmDesc').textContent = p.description;
     var optEl = $('pmOptions');
     if (p.options && p.options.length) {
@@ -744,6 +737,7 @@
           optEl.querySelectorAll('.opt-btn').forEach(function (x) { x.classList.remove('on'); });
           b.classList.add('on');
           optionCache[id] = b.getAttribute('data-opt');
+          renderOptionPrice($('pmPrice'), p, optionCache[id]);
           var optImg = imageForOption(p, b.getAttribute('data-opt'));
           if (optImg) $('pmImage').src = optImg;
         });
@@ -789,6 +783,42 @@
     return '';
   }
 
+  function optionPriceOf(p, opt) {
+    if (p && p.optionPrices && typeof p.optionPrices === 'object' && opt) {
+      var v = Number(p.optionPrices[opt]);
+      if (!isNaN(v) && v > 0) return v;
+    }
+    return null;
+  }
+
+  function renderOptionPrice(el, p, opt) {
+    var op = optionPriceOf(p, opt);
+    if (op != null) {
+      el.textContent = fmt(op);
+      return;
+    }
+    if (p.promoPrice != null && p.promoPrice !== '') {
+      var pct = discountPct(p);
+      el.innerHTML = '<span class="old">' + fmt(p.price) + '</span>' +
+        '<span class="pm-promo">' + fmt(p.promoPrice) + '</span>' +
+        (pct ? '<span class="discount-badge">-' + pct + '</span>' : '');
+    } else {
+      el.textContent = fmt(p.price);
+    }
+  }
+
+  function waPriceSuffix(p) {
+    var op = optionPriceOf(p, optionCache[p.id]);
+    if (op != null) return ' (' + fmt(op) + ')';
+    return p.promoPrice != null && p.promoPrice !== '' ? ' (' + fmt(p.promoPrice) + ')' : ' (' + fmt(p.price) + ')';
+  }
+
+  function refreshDlWa(p) {
+    var s = state.settings || {};
+    var wa = s.whatsapp ? 'https://wa.me/' + s.whatsapp.replace(/\D/g, '') + '?text=' : 'https://wa.me/?text=';
+    $('dlWa').href = wa + encodeURIComponent('Bonjour ' + (s.storeName || '') + ', je suis intéressé(e) par : ' + p.name + waPriceSuffix(p));
+  }
+
   function renderDetailDesc(raw) {
     var txt = String(raw || '');
     if (!txt.trim()) return '';
@@ -829,14 +859,7 @@
     $('dlBadge').style.display = p.badge ? '' : 'none';
     $('dlName').textContent = p.name;
     $('dlRating').innerHTML = p.rating ? stars(p.rating) + ' ' + p.rating.toFixed(1) + ' (' + (p.reviews || 0) + ' avis)' : 'Nouveau produit';
-    if (p.promoPrice != null && p.promoPrice !== '') {
-      var pct = discountPct(p);
-      $('dlPrice').innerHTML = '<span class="old">' + fmt(p.price) + '</span>' +
-        '<span class="pm-promo">' + fmt(p.promoPrice) + '</span>' +
-        (pct ? '<span class="discount-badge">-' + pct + '</span>' : '');
-    } else {
-      $('dlPrice').textContent = fmt(p.price);
-    }
+    renderOptionPrice($('dlPrice'), p, optionCache[id]);
     var meta = [];
     if (p.marque) meta.push('<span>Marque : <b>' + esc(p.marque) + '</b></span>');
     if (p.contenance) meta.push('<span>Contenance : <b>' + esc(p.contenance) + '</b></span>');
@@ -854,6 +877,8 @@
           optEl.querySelectorAll('.opt-btn').forEach(function (x) { x.classList.remove('on'); });
           b.classList.add('on');
           optionCache[id] = b.getAttribute('data-opt');
+          renderOptionPrice($('dlPrice'), p, optionCache[id]);
+          refreshDlWa(p);
           var optImg = imageForOption(p, b.getAttribute('data-opt'));
           if (optImg) $('dlMain').src = optImg;
         });
@@ -871,7 +896,7 @@
     addBtn.textContent = p.available === false ? 'En rupture' : 'Ajouter au panier';
     var wa = s.whatsapp ? 'https://wa.me/' + s.whatsapp.replace(/\D/g, '') + '?text=' :
       ('https://wa.me/?text=');
-    $('dlWa').href = wa + encodeURIComponent('Bonjour ' + (s.storeName || '') + ', je suis intéressé(e) par : ' + p.name + (p.promoPrice != null && p.promoPrice !== '' ? ' (' + fmt(p.promoPrice) + ')' : ' (' + fmt(p.price) + ')'));
+    $('dlWa').href = wa + encodeURIComponent('Bonjour ' + (s.storeName || '') + ', je suis intéressé(e) par : ' + p.name + waPriceSuffix(p));
     var main = $('dlMain');
     main.src = imgs[0] || '';
     var thumbs = $('dlThumbs');
@@ -910,7 +935,7 @@
         productId: pid,
         name: p.name,
         option: option || '',
-        price: p.promoPrice != null && p.promoPrice !== '' ? p.promoPrice : p.price,
+        price: optionPriceOf(p, option) != null ? optionPriceOf(p, option) : (p.promoPrice != null && p.promoPrice !== '' ? p.promoPrice : p.price),
         image: p.image,
         qty: qty
       });
