@@ -653,17 +653,17 @@
         var pct = discountPct(p);
         badge = '<span class="card-badge ' + bcol + '">' + esc(p.badge) + (pct && bcol === 'red' ? ' <span class="badge-pct">-' + pct + '</span>' : '') + '</span>';
       }
-      var rupt = p.available === false ? '<span class="card-stock">Rupture</span>' : '';
+      var rupt = productUnavailable(p) ? '<span class="card-stock">Rupture</span>' : '';
       var rating = p.rating ? '<div class="card-rating">' + stars(p.rating) + ' <span class="count">' + p.rating.toFixed(1) + ' (' + (p.reviews || 0) + ')</span></div>' : '';
       var catTxt = p.subcategory ? esc(catName(p.category)) + ' · ' + esc(subName(p.subcategory)) : esc(catName(p.category));
-      return '<div class="card' + (p.available === false ? ' off' : '') + '" data-id="' + p.id + '">' +
+      return '<div class="card' + (productUnavailable(p) ? ' off' : '') + '" data-id="' + p.id + '">' +
         badge + rupt +
         '<div class="card-img"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '" loading="lazy"></div>' +
         '<div class="card-body">' +
           '<div class="card-cat">' + catTxt + '</div>' +
           '<div class="card-name">' + esc(p.name) + '</div>' + rating +
           '<div class="card-foot">' + cardPrice(p) +
-            '<button class="add-btn" data-add="' + p.id + '">' + (p.available === false ? 'Rupture' : (p.options && p.options.length ? 'Choisir' : 'Ajouter')) + '</button>' +
+            '<button class="add-btn" data-add="' + p.id + '">' + (productUnavailable(p) ? 'Rupture' : (p.options && p.options.length ? 'Choisir' : 'Ajouter')) + '</button>' +
           '</div>' +
         '</div></div>';
     }).join('');
@@ -682,7 +682,7 @@
         var pid = btn.getAttribute('data-add');
         var p = state.products.find(function (x) { return x.id === pid; });
         if (!p) return;
-        if (p.available === false) { toast('Produit momentanément en rupture'); return; }
+        if (productUnavailable(p)) { toast('Produit momentanément en rupture'); return; }
         if (p.options && p.options.length) { openProduct(pid); return; }
         addToCart(p.id, '', 1);
       });
@@ -718,7 +718,7 @@
   function openProduct(id) {
     var p = state.products.find(function (x) { return x.id === id; });
     if (!p) return;
-    optionCache[id] = p.options && p.options.length ? p.options[0] : '';
+    optionCache[id] = firstAvailableOption(p);
     var qty = 1;
     $('pmBadge').textContent = p.badge || '';
     $('pmBadge').style.display = p.badge ? '' : 'none';
@@ -730,7 +730,8 @@
     var optEl = $('pmOptions');
     if (p.options && p.options.length) {
       optEl.innerHTML = p.options.map(function (o, i) {
-        return '<button class="opt-btn' + (i === 0 ? ' on' : '') + '" data-opt="' + esc(o) + '">' + esc(o) + '</button>';
+        var rupt = optionOutOfStock(p, o);
+        return '<button class="opt-btn' + (o === optionCache[id] ? ' on' : '') + (rupt ? ' off' : '') + '" data-opt="' + esc(o) + '">' + esc(o) + (rupt ? ' <span class="opt-rupt">Rupture</span>' : '') + '</button>';
       }).join('');
       optEl.querySelectorAll('.opt-btn').forEach(function (b) {
         b.addEventListener('click', function () {
@@ -740,23 +741,28 @@
           renderOptionPrice($('pmPrice'), p, optionCache[id]);
           var optImg = imageForOption(p, b.getAttribute('data-opt'));
           if (optImg) $('pmImage').src = optImg;
+          updatePmStock();
         });
       });
     } else {
       optEl.innerHTML = '';
     }
     $('pmQty').textContent = qty;
-    $('pmStock').innerHTML = p.available === false
-      ? '<span class="ko">✖ Momentanément en rupture de stock</span>'
-      : '<span class="ok">✔ Disponible</span>';
-    var addBtn = $('pmAdd');
-    addBtn.disabled = p.available === false;
-    addBtn.style.opacity = p.available === false ? 0.5 : 1;
-    addBtn.textContent = p.available === false ? 'En rupture' : 'Ajouter au panier';
+    var pmAddBtn = $('pmAdd');
+    function updatePmStock() {
+      var bad = optionOutOfStock(p, optionCache[id]);
+      $('pmStock').innerHTML = bad
+        ? '<span class="ko">✖ Momentanément en rupture de stock</span>'
+        : '<span class="ok">✔ Disponible</span>';
+      pmAddBtn.disabled = bad;
+      pmAddBtn.style.opacity = bad ? 0.5 : 1;
+      pmAddBtn.textContent = bad ? 'En rupture' : 'Ajouter au panier';
+    }
+    updatePmStock();
     $('pmPlus').onclick = function () { qty++; $('pmQty').textContent = qty; };
     $('pmMinus').onclick = function () { if (qty > 1) { qty--; $('pmQty').textContent = qty; } };
-    addBtn.onclick = function () {
-      if (p.available === false) { toast('Produit momentanément en rupture'); return; }
+    pmAddBtn.onclick = function () {
+      if (optionOutOfStock(p, optionCache[id])) { toast('Option momentanément en rupture'); return; }
       addToCart(p.id, optionCache[id] || '', qty);
       closeModals(null);
     };
@@ -789,6 +795,29 @@
       if (!isNaN(v) && v > 0) return v;
     }
     return null;
+  }
+
+  function optionOutOfStock(p, opt) {
+    if (!p || p.available === false) return true;
+    if (opt && p.optionStock && typeof p.optionStock === 'object' && p.optionStock[opt] === false) return true;
+    return false;
+  }
+
+  function productUnavailable(p) {
+    if (!p || p.available === false) return true;
+    if (Array.isArray(p.options) && p.options.length) {
+      var anyAvail = p.options.some(function (o) { return !optionOutOfStock(p, o); });
+      return !anyAvail;
+    }
+    return false;
+  }
+
+  function firstAvailableOption(p) {
+    if (!p || !Array.isArray(p.options) || !p.options.length) return '';
+    for (var i = 0; i < p.options.length; i++) {
+      if (!optionOutOfStock(p, p.options[i])) return p.options[i];
+    }
+    return p.options[0];
   }
 
   function renderOptionPrice(el, p, opt) {
@@ -851,7 +880,7 @@
   function openProductDetail(id) {
     var p = state.products.find(function (x) { return x.id === id; });
     if (!p) return;
-    optionCache[id] = p.options && p.options.length ? p.options[0] : '';
+    optionCache[id] = firstAvailableOption(p);
     var qty = 1;
     var s = state.settings || {};
     var imgs = galleryFor(p);
@@ -870,7 +899,8 @@
     var optEl = $('dlOptions');
     if (p.options && p.options.length) {
       optEl.innerHTML = p.options.map(function (o, i) {
-        return '<button class="opt-btn' + (i === 0 ? ' on' : '') + '" data-opt="' + esc(o) + '">' + esc(o) + '</button>';
+        var rupt = optionOutOfStock(p, o);
+        return '<button class="opt-btn' + (o === optionCache[id] ? ' on' : '') + (rupt ? ' off' : '') + '" data-opt="' + esc(o) + '">' + esc(o) + (rupt ? ' <span class="opt-rupt">Rupture</span>' : '') + '</button>';
       }).join('');
       optEl.querySelectorAll('.opt-btn').forEach(function (b) {
         b.addEventListener('click', function () {
@@ -881,19 +911,24 @@
           refreshDlWa(p);
           var optImg = imageForOption(p, b.getAttribute('data-opt'));
           if (optImg) $('dlMain').src = optImg;
+          updateDlStock();
         });
       });
     } else {
       optEl.innerHTML = '';
     }
     $('dlQty').textContent = qty;
-    $('dlStock').innerHTML = p.available === false
-      ? '<span class="ko">✖ Momentanément en rupture de stock</span>'
-      : '<span class="ok">✔ Disponible</span>';
-    var addBtn = $('dlAdd');
-    addBtn.disabled = p.available === false;
-    addBtn.style.opacity = p.available === false ? 0.5 : 1;
-    addBtn.textContent = p.available === false ? 'En rupture' : 'Ajouter au panier';
+    function updateDlStock() {
+      var bad = optionOutOfStock(p, optionCache[id]);
+      $('dlStock').innerHTML = bad
+        ? '<span class="ko">✖ Momentanément en rupture de stock</span>'
+        : '<span class="ok">✔ Disponible</span>';
+      var addBtn = $('dlAdd');
+      addBtn.disabled = bad;
+      addBtn.style.opacity = bad ? 0.5 : 1;
+      addBtn.textContent = bad ? 'En rupture' : 'Ajouter au panier';
+    }
+    updateDlStock();
     var wa = s.whatsapp ? 'https://wa.me/' + s.whatsapp.replace(/\D/g, '') + '?text=' :
       ('https://wa.me/?text=');
     $('dlWa').href = wa + encodeURIComponent('Bonjour ' + (s.storeName || '') + ', je suis intéressé(e) par : ' + p.name + waPriceSuffix(p));
@@ -915,8 +950,8 @@
     body.innerHTML = renderDetailDesc(txt) || '<p>' + esc(p.description || '') + '</p>';
     $('dlPlus').onclick = function () { qty++; $('dlQty').textContent = qty; };
     $('dlMinus').onclick = function () { if (qty > 1) { qty--; $('dlQty').textContent = qty; } };
-    addBtn.onclick = function () {
-      if (p.available === false) { toast('Produit momentanément en rupture'); return; }
+    $('dlAdd').onclick = function () {
+      if (optionOutOfStock(p, optionCache[id])) { toast('Option momentanément en rupture'); return; }
       addToCart(p.id, optionCache[id] || '', qty);
       closeModals(null);
     };
@@ -927,6 +962,7 @@
   function addToCart(pid, option, qty) {
     var p = state.products.find(function (x) { return x.id === pid; });
     if (!p) return;
+    if (option && optionOutOfStock(p, option)) { toast('Option momentanément en rupture'); return; }
     var existing = cart.find(function (x) { return x.productId === pid && x.option === option; });
     if (existing) {
       existing.qty += qty;

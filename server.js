@@ -356,6 +356,10 @@ async function handleApi(req, res, pathname) {
         const p = products.find((x) => x.id === it.productId);
         if (!p) return sendJSON(res, 400, { error: 'Produit introuvable dans le panier' });
         if (p.available === false) return sendJSON(res, 400, { error: 'Produit en rupture de stock : ' + p.name });
+        const optInStock = String(it.option || '').trim();
+        if (optInStock && p.optionStock && typeof p.optionStock === 'object' && p.optionStock[optInStock] === false) {
+          return sendJSON(res, 400, { error: 'Variante en rupture de stock : ' + p.name + ' (' + optInStock + ')' });
+        }
         const uprice = (p.optionPrices && typeof p.optionPrices === 'object' && p.optionPrices[it.option] != null)
           ? Number(p.optionPrices[it.option])
           : (p.promoPrice != null && p.promoPrice !== '' ? Number(p.promoPrice) : Number(p.price));
@@ -764,6 +768,33 @@ function parseOptionPrices(src) {
   return out;
 }
 
+function parseOptionStock(src, opts) {
+  const out = {};
+  const list = Array.isArray(opts) ? opts : [];
+  if (src && typeof src === 'object' && !Array.isArray(src)) {
+    Object.keys(src).forEach((k) => {
+      const key = String(k).trim();
+      if (!key) return;
+      const v = String(src[k] || '').trim().toLowerCase();
+      if (v === 'false' || v === '0' || v === '0%' || String(v) === '' && src[k] === false) {
+        if (!list.length || list.indexOf(key) !== -1) out[key] = false;
+      }
+    });
+  } else {
+    String(src || '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        let opt = line;
+        const m = line.match(/^(.*?)\s+(0|rupture|epuise|epuis\w*|false)$/i);
+        if (m) opt = m[1].trim();
+        if (opt && (!list.length || list.indexOf(opt) !== -1)) out[opt] = false;
+      });
+  }
+  return out;
+}
+
 function normalizeProduct(p) {
   const num = (v) => {
     const n = parseFloat(v);
@@ -816,6 +847,7 @@ function normalizeProduct(p) {
         }, {})
       : {},
     optionPrices: parseOptionPrices(p.optionPrices),
+    optionStock: parseOptionStock(p.optionStock, opts),
     createdAt: p.createdAt || new Date().toISOString()
   };
 }

@@ -442,6 +442,9 @@ button, a, input, select, textarea, .card, .chip { touch-action: manipulation; }
   font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text); font-family: inherit;
 }
 .pm-options .opt-btn.on { border-color: var(--primary); background: var(--primary-fade); color: var(--primary-dark); }
+.pm-options .opt-btn.off { opacity: 0.55; border-style: dashed; color: var(--muted); cursor: not-allowed; }
+.pm-options .opt-btn.off .opt-rupt,
+.dl-options .opt-btn.off .opt-rupt { display: inline-block; margin-left: 4px; font-size: 10px; font-weight: 800; color: var(--danger); text-transform: uppercase; letter-spacing: 0.4px; }
 .pm-qty { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-weight: 700; font-size: 14px; }
 .pm-stock { font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center; }
 .pm-stock.ok { color: #2e9e4f; font-weight: 700; }

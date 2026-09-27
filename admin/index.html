@@ -161,6 +161,12 @@
             <div class="small">Une ligne par option : <b>Nom de l'option</b> puis le <b>prix</b>, séparés par un simple espace (ou une flèche →). Écrivez le nom exactement comme dans « Options / variantes ». Le prix affiché et celui envoyé à la commande changeront selon l'option choisie. Laisser vide = même prix pour toutes les variantes.</div>
           </label>
         </div>
+        <div class="fspan2">
+          <label>Options en rupture (optionnel — le produit reste visible, seule cette variante est bloquée)
+            <textarea id="p_optionStock" placeholder="10 mg sel de nicotine&#10;Menthe 0 mg"></textarea>
+            <div class="small">Une ligne par option en rupture : le <b>nom exact</b> tel que dans « Options / variantes ». Exemple : si le 10 mg est épuisé mais que le 20 mg reste dispo, écrivez <b>10 mg sel de nicotine</b>. Le produit reste affiché, l'option concernée est grisée « Rupture » à la boutique et ne peut pas être commandée. Laisser vide = toutes vos options sont disponibles.</div>
+          </label>
+        </div>
 <div class="fspan2">
           <label>Description
             <textarea id="p_description" placeholder="Description du produit..."></textarea>
@@ -285,6 +291,6 @@
 
   <div id="toasts"></div>
 
-  <script src="/admin/admin.v29.js"></script>
+  <script src="/admin/admin.v30.js"></script>
 </body>
 </html>

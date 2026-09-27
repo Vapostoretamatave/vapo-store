@@ -418,6 +418,9 @@ var $ = function (id) { return document.getElementById(id); };
     $('p_optionPrices').value = p && p.optionPrices && typeof p.optionPrices === 'object'
       ? Object.keys(p.optionPrices).map(function (k) { return k + ' ' + p.optionPrices[k]; }).join('\n')
       : '';
+    $('p_optionStock').value = p && p.optionStock && typeof p.optionStock === 'object'
+      ? Object.keys(p.optionStock).filter(function (k) { return p.optionStock[k] === false; }).join('\n')
+      : '';
     $('p_description').value = p ? p.description || '' : '';
     $('p_longDescription').value = p ? p.longDescription || '' : '';
     $('p_gallery').value = p && p.gallery && p.gallery.length ? p.gallery.join('\n') : '';
@@ -632,6 +635,11 @@ var $ = function (id) { return document.getElementById(id); };
           if (m) m = [m[1].trim(), m[2].trim()];
         }
         if (m && m[0] && m[1] && !isNaN(parseFloat(String(m[1]).replace(/[^\d.,]/g, '').replace(',', '.')))) acc[m[0]] = m[1];
+        return acc;
+      }, {}),
+      optionStock: $('p_optionStock').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).reduce(function (acc, line) {
+        var name = String(line).replace(/\s+(0|rupture|epuise|epuis\w*|false)$/i, '').trim();
+        if (name) acc[name] = false;
         return acc;
       }, {}),
       featured: $('p_featured').checked,
