@@ -114,6 +114,7 @@ function addToDict(keys) {
   dict.saveurs = merge('saveurs', keys.saveurs);
   dict.marques = merge('marques', keys.marques);
   dict.contenances = merge('contenances', keys.contenances);
+  dict.taux = merge('taux', keys.taux);
   writeData('dict.json', dict);
   return dict;
 }
@@ -563,7 +564,8 @@ async function handleApi(req, res, pathname) {
         const dict = addToDict({
           marques: [prod.marque],
           saveurs: String(prod.flavor || '').split(',').map((x) => x.trim()),
-          contenances: [prod.contenance]
+          contenances: [prod.contenance],
+          taux: String(prod.taux || '').split(',').map((x) => x.trim())
         });
         return sendJSON(res, 200, { ok: true, product: prod, dict: dict });
       }
@@ -580,7 +582,8 @@ async function handleApi(req, res, pathname) {
         const dict = addToDict({
           marques: [products[idx].marque],
           saveurs: String(products[idx].flavor || '').split(',').map((x) => x.trim()),
-          contenances: [products[idx].contenance]
+          contenances: [products[idx].contenance],
+          taux: String(products[idx].taux || '').split(',').map((x) => x.trim())
         });
         return sendJSON(res, 200, { ok: true, product: products[idx], dict: dict });
       }
