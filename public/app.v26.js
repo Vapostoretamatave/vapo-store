@@ -617,12 +617,39 @@
     return pct + '%';
   }
 
+  function optionPriceRange(p) {
+    if (!p || typeof p.optionPrices !== 'object' || !p.options || !p.options.length) return null;
+    var vals = [];
+    for (var i = 0; i < p.options.length; i++) {
+      var v = optionPriceOf(p, p.options[i]);
+      if (v != null) vals.push(v);
+    }
+    if (vals.length < 2) return null;
+    var min = Math.min.apply(null, vals);
+    var max = Math.max.apply(null, vals);
+    if (min === max) return null;
+    return { min: min, max: max };
+  }
+
   function cardPrice(p) {
     if (p.promoPrice != null && p.promoPrice !== '') {
       return '<span class="old">' + fmt(p.price) + '</span>' +
         '<span class="price promo">' + fmt(p.promoPrice) + '</span>';
     }
+    var rng = optionPriceRange(p);
+    if (rng) {
+      return '<span class="price range">' + fmt(rng.min) + ' – ' + fmt(rng.max) + '</span>';
+    }
     return '<span class="price">' + fmt(p.price) + '</span>';
+  }
+
+  function renderInitialPrice(el, p) {
+    var rng = optionPriceRange(p);
+    if (rng) {
+      el.innerHTML = '<span class="price range">' + fmt(rng.min) + ' – ' + fmt(rng.max) + '</span>';
+      return;
+    }
+    renderOptionPrice(el, p, firstAvailableOption(p));
   }
 
   function renderProducts() {
@@ -725,7 +752,7 @@
     $('pmImage').src = p.image;
     $('pmName').textContent = p.name;
     $('pmRating').innerHTML = p.rating ? stars(p.rating) + ' ' + p.rating.toFixed(1) + ' (' + (p.reviews || 0) + ' avis)' : 'Nouveau produit';
-    renderOptionPrice($('pmPrice'), p, optionCache[id]);
+    renderInitialPrice($('pmPrice'), p);
     $('pmDesc').textContent = p.description;
     var optEl = $('pmOptions');
     if (p.options && p.options.length) {
@@ -907,7 +934,7 @@
           optEl.querySelectorAll('.opt-btn').forEach(function (x) { x.classList.remove('on'); });
           b.classList.add('on');
           optionCache[id] = b.getAttribute('data-opt');
-          renderOptionPrice($('dlPrice'), p, optionCache[id]);
+renderInitialPrice($('dlPrice'), p);
           refreshDlWa(p);
           var optImg = imageForOption(p, b.getAttribute('data-opt'));
           if (optImg) $('dlMain').src = optImg;

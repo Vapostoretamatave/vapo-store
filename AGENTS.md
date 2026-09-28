@@ -14,8 +14,9 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - `public/index.html` référence `/app.vN.js` et `/styles.css?v=N`.
 - `admin/index.html` référence `/admin/admin.vN.js` et `/admin/admin.css?v=N`.
 - **Règle** : quand on modifie `public/app.js`, bump vers app.v(N+1) et copier LA SOURCE sur TOUTES les versions numérotées (v5..N+1). Idem admin. Quand on modifie un CSS, bumper son `?v=`.
-- État actuel (à mettre à jour) : boutique = app.v41.js + styles.css?v=31 ; admin = admin.v30.js + admin.css?v=10. Prochains bumps : styles.css?v=32, admin.css?v=11 (selon fichiers touchés).
-- Il existe des copies numérotées : public/app.v5..v41.js, admin/admin.v5..v30.js. TOUJOURS resync toutes quand on change la source.
+- État actuel (à mettre à jour) : boutique = app.v42.js + styles.css?v=32 ; admin = admin.v30.js + admin.css?v=10. Prochains bumps : admin.css?v=11 (selon fichiers touchés).
+- Il existe des copies numérotées : public/app.v5..v42.js, admin/admin.v5..v30.js. TOUJOURS resync toutes quand on change la source.
+- **Fourchette de prix (app.v42 / styles.css?v=32)** : si un produit a des `optionPrices` avec prix DIFFÉRENTS selon les options, la carte, la petite modale et la fiche détaillée affichent la fourchette « 15 000 – 18 000 Ar » (`cardPrice` + `renderInitialPrice` + `optionPriceRange`, class `.price.range` compacte 13px nowrap, 12px full-width sur mobile). Avant clic d'option → fourchette ; après clic → prix exact de l'option (`renderOptionPrice`, inchangé). Si tous les prix par option sont identiques → prix unique. Promo (`promoPrice`) = comportement inchangé (l'utilisateur gère le prix promo en admin).
 - **Pagination boutique (app.v38 / styles.css?v=29)** : grille paginée 18 produits/page (`PAGE_SIZE`), barre `‹ 1 2 3 … ›` (`renderPager()` + `#pager`). Page reset à 1 quand la signature des filtres change (catégorie/sous-cat/facet/recherche/promo/tri). Hash inchangé.
 - **Barre nav mobile défilable (styles.css?v=30)** : `.nav` n'est plus masqué sous 860px (était `display:none`) → s'affiche sous le header sticky, défilable gauche/droite déjà géré par `.nav-inner` (overflow-x auto + scrollbar cachée). Cliquer une catégorie = afficher TOUS ses produits (selectCategory 'sub'=''), filtre ensuite via bouton Filtrer/burger.
 
