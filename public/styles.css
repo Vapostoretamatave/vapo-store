@@ -247,6 +247,7 @@ button, a, input, select, textarea, .card, .chip { touch-action: manipulation; }
 @media (max-width: 600px) {
   .card-foot { flex-wrap: wrap; row-gap: 4px; }
   .card-foot .old { width: 100%; font-size: 11px; }
+  .card-foot .add-btn { margin-left: auto; }
 }
 .pm-price .old { font-size: 15px; color: var(--muted); font-weight: 600; }
 .pm-promo { font-size: 24px; font-weight: 900; color: var(--danger); margin-left: 8px; white-space: nowrap; }
