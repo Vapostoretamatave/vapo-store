@@ -219,8 +219,8 @@
       <form id="bannerForm" class="form-grid">
         <input type="hidden" id="b_id">
         <div class="fspan2">
-          <label>Titre de la banderole *
-            <input type="text" id="b_title" required placeholder="Ex : PROMO E-LIQUIDES">
+          <label>Titre de la banderole <span style="color:var(--muted);font-weight:400">(optionnel — laisser vide pour une bannière 100 % image)</span>
+            <input type="text" id="b_title" placeholder="Ex : PROMO E-LIQUIDES">
           </label>
         </div>
         <div class="fspan2">
@@ -243,7 +243,7 @@
           <input type="text" id="b_buttonLink" placeholder="Lien rempli automatiquement. Ou tapez une URL http...">
         </label>
         <div class="fspan2">
-          <label>Image de la banderole (format large conseillé ~1600x520)
+          <label>Image de la banderole (format large conseillé ~1920x640 — l'image est conservée en haute définition)
             <div class="img-row">
               <div class="img-preview" id="b_imagePreview" style="width:220px;height:90px"><img id="b_imageImg" alt=""></div>
               <div class="img-controls">
@@ -291,6 +291,6 @@
 
   <div id="toasts"></div>
 
-  <script src="/admin/admin.v30.js"></script>
+  <script src="/admin/admin.v31.js"></script>
 </body>
 </html>

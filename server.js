@@ -219,8 +219,11 @@ async function hasRealTransparency(buf) {
   return false;
 }
 
-async function optimizeImage(buf, origExt) {
+async function optimizeImage(buf, origExt, opts) {
   if (!sharp) return { buf, ext: origExt, changed: false };
+  const o = opts || {};
+  const maxWidth = Math.max(320, Math.min(3840, Number(o.maxWidth) || IMG_MAX_WIDTH));
+  const quality = Math.max(50, Math.min(100, Number(o.quality) || IMG_QUALITY));
   let meta;
   try { meta = await sharp(buf).metadata(); } catch (e) { return { buf, ext: origExt, changed: false }; }
   const fmt = String(meta.format || '').toLowerCase();
@@ -228,8 +231,8 @@ async function optimizeImage(buf, origExt) {
   let keepPng = false;
   try { keepPng = await hasRealTransparency(buf); } catch (e) { /* JPEG par defaut */ }
   let pipeline = sharp(buf).rotate();
-  if (meta.width && meta.width > IMG_MAX_WIDTH) {
-    pipeline = pipeline.resize({ width: IMG_MAX_WIDTH, withoutEnlargement: true });
+  if (meta.width && meta.width > maxWidth) {
+    pipeline = pipeline.resize({ width: maxWidth, withoutEnlargement: true });
   }
   let outBuf;
   let outExt;
@@ -238,7 +241,7 @@ async function optimizeImage(buf, origExt) {
       outBuf = await pipeline.png({ compressionLevel: 9, effort: 10 }).toBuffer();
       outExt = '.png';
     } else {
-      outBuf = await pipeline.flatten({ background: '#ffffff' }).jpeg({ quality: IMG_QUALITY, mozjpeg: true }).toBuffer();
+      outBuf = await pipeline.flatten({ background: '#ffffff' }).jpeg({ quality: quality, mozjpeg: true }).toBuffer();
       outExt = '.jpg';
     }
   } catch (e) { return { buf, ext: origExt, changed: false }; }
@@ -722,7 +725,7 @@ async function handleApi(req, res, pathname) {
         if (!['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext)) ext = '.png';
         let finalBuf = buf;
         try {
-          const opt = await optimizeImage(buf, ext);
+          const opt = await optimizeImage(buf, ext, { maxWidth: body.maxWidth, quality: body.quality });
           if (opt.changed) { finalBuf = opt.buf; ext = opt.ext; }
         } catch (e) { /* on garde l'original si echec */ }
         const finalName = Date.now() + '-' + crypto.randomBytes(3).toString('hex') + ext;

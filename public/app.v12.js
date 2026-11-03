@@ -306,15 +306,24 @@
     var track = $('heroTrack');
     track.innerHTML = '';
     slides.forEach(function (b, i) {
+      var hasTitle = !!(b.title && String(b.title).trim());
+      var hasSub = !!(b.subtitle && String(b.subtitle).trim());
+      var hasBtn = !!(b.buttonText && String(b.buttonText).trim());
+      var imageOnly = !!b.image && !hasTitle && !hasSub && !hasBtn;
       var d = document.createElement('div');
-      d.className = 'hero-slide' + (i === 0 ? ' on' : '');
+      d.className = 'hero-slide' + (i === 0 ? ' on' : '') + (imageOnly ? ' hero-image-only' : '');
       if (b.image) d.style.backgroundImage = 'url("' + b.image + '")';
-      d.innerHTML = '<div class="hero-slide-inner"><span class="hero-badge">' + esc(s.storeName) + '</span>' +
-        '<h1>' + esc(b.title) + '</h1>' +
-        (b.subtitle ? '<p>' + esc(b.subtitle) + '</p>' : '') +
-        (b.buttonText ? '<a class="btn btn-glow" href="' + esc(b.buttonLink || '#products') + '"' +
-          (b.buttonLink && b.buttonLink.indexOf('http') === 0 ? ' target="_blank" rel="noopener"' : '') + '>' + esc(b.buttonText) + '</a>' : '') +
-        '</div>';
+      if (imageOnly) {
+        d.innerHTML = '';
+      } else {
+        d.innerHTML = '<div class="hero-slide-inner">' +
+          (hasTitle ? '<span class="hero-badge">' + esc(s.storeName) + '</span>' +
+            '<h1>' + esc(b.title) + '</h1>' : '') +
+          (hasSub ? '<p>' + esc(b.subtitle) + '</p>' : '') +
+          (hasBtn ? '<a class="btn btn-glow" href="' + esc(b.buttonLink || '#products') + '"' +
+            (b.buttonLink && b.buttonLink.indexOf('http') === 0 ? ' target="_blank" rel="noopener"' : '') + '>' + esc(b.buttonText) + '</a>' : '') +
+          '</div>';
+      }
       track.appendChild(d);
     });
     var dots = $('heroDots');

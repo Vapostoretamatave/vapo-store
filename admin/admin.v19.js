@@ -676,7 +676,10 @@ var $ = function (id) { return document.getElementById(id); };
   bindDescImageInsert($('p_descImage'), $('p_descImageAdd'), $('p_longDescription'));
 
   /* ---------------- Image upload ---------------- */
-  function bindUpload(fileInput, urlInput, previewImg) {
+  function bindUpload(fileInput, urlInput, previewImg, opts) {
+    var o = opts || {};
+    var max = o.max || 800;
+    var quality = o.quality || 0.8;
     fileInput.addEventListener('change', function () {
       var file = fileInput.files[0];
       if (!file) return;
@@ -692,7 +695,7 @@ var $ = function (id) { return document.getElementById(id); };
         var raw = ev.target.result;
         if (previewImg) previewImg.src = raw;
         if (isSvg) {
-          sendUpload(file.name, raw, urlInput, previewImg);
+          sendUpload(file.name, raw, urlInput, previewImg, o);
           return;
         }
         var img = new Image();
@@ -701,11 +704,10 @@ var $ = function (id) { return document.getElementById(id); };
         };
         img.onload = function () {
           try {
-            var max = 800;
             var w = img.width, h = img.height;
-            if (!w || !h) { sendUpload(file.name, raw, urlInput, previewImg); return; }
+            if (!w || !h) { sendUpload(file.name, raw, urlInput, previewImg, o); return; }
             if (w <= max && h <= max && file.size <= 2.5 * 1024 * 1024) {
-              sendUpload(file.name, raw, urlInput, previewImg);
+              sendUpload(file.name, raw, urlInput, previewImg, o);
               return;
             }
             var scale = Math.min(1, max / Math.max(w, h));
@@ -714,10 +716,10 @@ var $ = function (id) { return document.getElementById(id); };
             canvas.height = Math.round(h * scale);
             canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
             var outType = /png/i.test(type) ? 'image/png' : 'image/jpeg';
-            sendUpload(file.name.replace(/\.[^.]+$/, '') + (outType === 'image/png' ? '.png' : '.jpg'), canvas.toDataURL(outType, 0.8), urlInput, previewImg);
+            sendUpload(file.name.replace(/\.[^.]+$/, '') + (outType === 'image/png' ? '.png' : '.jpg'), canvas.toDataURL(outType, quality), urlInput, previewImg, o);
           } catch (err) {
             toast('Redimensionnement impossible, envoi de l\'image d\'origine…');
-            sendUpload(file.name, raw, urlInput, previewImg);
+            sendUpload(file.name, raw, urlInput, previewImg, o);
           }
         };
         img.src = raw;
@@ -794,8 +796,12 @@ function markImg(previewImg, url, ok) {
   st.textContent = ok ? '✔ Image enregistrée : ' + url : '✖ Échec du téléversement';
 }
 
-function sendUpload(name, dataUrl, urlInput, previewImg) {
-  api('/api/admin/upload', { method: 'POST', body: { name: name, data: dataUrl }, timeout: 45000 }).then(function (res) {
+function sendUpload(name, dataUrl, urlInput, previewImg, opts) {
+  var o = opts || {};
+  var body = { name: name, data: dataUrl };
+  if (o.max) body.maxWidth = o.max;
+  if (o.quality) body.quality = Math.round(o.quality * 100);
+  api('/api/admin/upload', { method: 'POST', body: body, timeout: 45000 }).then(function (res) {
     if (!res.ok) {
       markImg(previewImg, '', false);
       return toast(res.d.error || 'Erreur image', true);
@@ -1025,7 +1031,7 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
       buttonLink: $('b_buttonLink').value.trim(),
       image: $('b_image').value.trim()
     };
-    if (!data.title) return toast('Le titre est requis', true);
+    if (!data.title && !data.image) return toast('Ajoutez au moins une image ou un titre', true);
     var url = id ? '/api/admin/banners/' + id : '/api/admin/banners';
     api(url, { method: id ? 'PUT' : 'POST', body: data }).then(function (res) {
       if (!res.ok) return toast(res.d.error || 'Erreur', true);
@@ -1119,7 +1125,7 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
   $('catCancel').onclick = function () { $('catModal').classList.add('hidden'); };
   $('bannerClose').onclick = closeBannerForm;
   $('bannerCancel').onclick = closeBannerForm;
-  bindUpload($('b_file'), $('b_image'), $('b_imageImg'));
+  bindUpload($('b_file'), $('b_image'), $('b_imageImg'), { max: 1920, quality: 0.92 });
   $('b_dest').addEventListener('change', function () {
     $('b_buttonLink').value = bannerValueToLink();
   });
@@ -1353,7 +1359,7 @@ function sendUpload(name, dataUrl, urlInput, previewImg) {
       });
     }
 
-    bindUpload($('heroFile'), $('heroUrl'), $('heroPrev'));
+    bindUpload($('heroFile'), $('heroUrl'), $('heroPrev'), { max: 1920, quality: 0.92 });
     bindUpload($('brandFile'), $('brandUrl'), $('brandPrev'));
 
     renderDictChips('dictSaveurs', state.dict.saveurs);
