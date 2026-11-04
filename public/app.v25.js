@@ -314,7 +314,9 @@
       d.className = 'hero-slide' + (i === 0 ? ' on' : '') + (imageOnly ? ' hero-image-only' : '');
       if (b.image) d.style.backgroundImage = 'url("' + b.image + '")';
       if (imageOnly) {
-        d.innerHTML = '';
+        var bLink = b.buttonLink && String(b.buttonLink).trim();
+        d.innerHTML = bLink ? '<a class="hero-slide-hit" href="' + esc(bLink) + '" aria-label="' + esc(b.title || s.storeName) + '"' +
+          (bLink.indexOf('http') === 0 ? ' target="_blank" rel="noopener"' : '') + '></a>' : '';
       } else {
         d.innerHTML = '<div class="hero-slide-inner">' +
           (hasTitle ? '<span class="hero-badge">' + esc(s.storeName) + '</span>' +

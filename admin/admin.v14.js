@@ -893,7 +893,7 @@ function sendUpload(name, dataUrl, urlInput, previewImg, opts) {
       return '<div class="banner-card">' +
         '<div class="banner-thumb">' + (b.image ? '<img src="' + esc(b.image) + '" alt="">' : '<span style="color:var(--muted)">pas d\'image</span>') + '</div>' +
         '<div class="banner-info">' +
-          '<div class="t">' + esc(b.title) + '</div>' +
+          '<div class="t">' + esc(b.title || 'Banderole image (sans titre)') + '</div>' +
           '<div class="s">' + esc(b.subtitle || '') + (b.buttonText ? ' · [' + esc(b.buttonText) + ']' : '') + '</div>' +
         '</div>' +
         '<div class="banner-actions">' +

@@ -128,6 +128,8 @@ img { max-width: 100%; display: block; }
 /* Banderole 100 % image : aucun voile, aucun texte, l'image reste intacte */
 .hero-slide.hero-image-only { padding: 0; }
 .hero-slide.hero-image-only::before { display: none; }
+/* Bandeau image cliquable (le lien reste actif même sans texte) */
+.hero-slide-hit { position: absolute; inset: 0; z-index: 2; display: block; }
 .hero-badge {
   display: inline-block; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25);
   padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 700; margin-bottom: 18px;
