@@ -189,6 +189,45 @@
     return [];
   }
 
+  /* Tri des valeurs de filtre côté client :
+     - saveurs / marques : ordre alphabétique (accents ignorés)
+     - contenances : du plus petit au plus grand volume (ml/L/cl → en ml)
+     - taux : du plus faible au plus fort (mg) */
+  function dimNumber(key, v) {
+    var s = String(v || '').toLowerCase();
+    if (key === 'contenance') {
+      var m = s.match(/(\d+(?:[.,]\d+)?)\s*(ml|litre|l|cl)\b/);
+      if (!m) m = s.match(/(\d+(?:[.,]\d+)?)/);
+      if (!m) return Infinity;
+      var n = parseFloat(m[1].replace(',', '.'));
+      var unit = m[2] || 'ml';
+      if (unit === 'litre' || unit === 'l') n *= 1000;
+      else if (unit === 'cl') n *= 10;
+      return n;
+    }
+    if (key === 'taux') {
+      var t = s.match(/(\d+(?:[.,]\d+)?)\s*mg/);
+      if (!t) return 0; /* « Sans nicotine » passe en premier */
+      return parseFloat(t[1].replace(',', '.'));
+    }
+    return 0;
+  }
+
+  function sortDimValues(key, list) {
+    var arr = list.slice();
+    if (key === 'contenance' || key === 'taux') {
+      return arr.map(function (v) { return { v: v, n: dimNumber(key, v) }; })
+        .sort(function (a, b) {
+          if (a.n !== b.n) return a.n - b.n;
+          return String(a.v).localeCompare(String(b.v), 'fr', { sensitivity: 'base' });
+        })
+        .map(function (x) { return x.v; });
+    }
+    return arr.sort(function (a, b) {
+      return String(a).localeCompare(String(b), 'fr', { sensitivity: 'base', numeric: true });
+    });
+  }
+
   function dimsFor(catId, key) {
     var seen = {}, list = [];
     state.products.forEach(function (p) {
@@ -199,7 +238,7 @@
         if (v && !seen[lw]) { seen[lw] = 1; list.push(v); }
       });
     });
-    return list;
+    return sortDimValues(key, list);
   }
 
   function pHasDim(p, key, val) {
