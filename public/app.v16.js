@@ -207,6 +207,7 @@
     }
     if (key === 'taux') {
       var t = s.match(/(\d+(?:[.,]\d+)?)\s*mg/);
+      if (!t) t = s.match(/(\d+(?:[.,]\d+)?)/); /* tolère « 20 » sans mg */
       if (!t) return 0; /* « Sans nicotine » passe en premier */
       return parseFloat(t[1].replace(',', '.'));
     }
