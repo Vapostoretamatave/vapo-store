@@ -140,6 +140,23 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // URL publique d'un produit (page indexable par Google) : /produit/<nom-slug>-<8 car. de l'id>
+  function slugify(s) {
+    return String(s == null ? '' : s)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80)
+      .replace(/-+$/g, '');
+  }
+
+  function productPath(p) {
+    var id = String((p && p.id) || '').replace(/-/g, '').toLowerCase();
+    var slug = slugify(p && p.name) || 'produit';
+    return '/produit/' + (id ? slug + '-' + id.slice(0, 8) : slug);
+  }
+
   function toast(msg) {
     var box = $('toasts');
     var t = document.createElement('div');
@@ -734,12 +751,13 @@
       var rupt = productUnavailable(p) ? '<span class="card-stock">Rupture</span>' : '';
       var rating = p.rating ? '<div class="card-rating">' + stars(p.rating) + ' <span class="count">' + p.rating.toFixed(1) + ' (' + (p.reviews || 0) + ')</span></div>' : '';
       var catTxt = p.subcategory ? esc(catName(p.category)) + ' · ' + esc(subName(p.subcategory)) : esc(catName(p.category));
+      var pUrl = esc(productPath(p));
       return '<div class="card' + (productUnavailable(p) ? ' off' : '') + '" data-id="' + p.id + '">' +
         badge + rupt +
-        '<div class="card-img"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '" loading="lazy"></div>' +
+        '<div class="card-img"><a href="' + pUrl + '" title="' + esc(p.name) + '"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '" loading="lazy"></a></div>' +
         '<div class="card-body">' +
           '<div class="card-cat">' + catTxt + '</div>' +
-          '<div class="card-name">' + esc(p.name) + '</div>' + rating +
+          '<div class="card-name"><a href="' + pUrl + '">' + esc(p.name) + '</a></div>' + rating +
           '<div class="card-foot">' + cardPrice(p) +
             '<button class="add-btn" data-add="' + p.id + '">' + (productUnavailable(p) ? 'Rupture' : (p.options && p.options.length ? 'Choisir' : 'Ajouter')) + '</button>' +
           '</div>' +
@@ -749,6 +767,12 @@
     grid.querySelectorAll('.card').forEach(function (c) {
       c.addEventListener('click', function (e) {
         if (e.target.closest('.add-btn')) return;
+        var a = e.target.closest('a');
+        if (a) {
+          // clic normal -> on garde la modale ; ctrl/cmd/maj-clic -> vraie page produit
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+        }
         var p = state.products.find(function (x) { return x.id === c.getAttribute('data-id'); });
         if (p && hasDetail(p)) openProductDetail(p.id);
         else openProduct(c.getAttribute('data-id'));

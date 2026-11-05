@@ -204,6 +204,381 @@ async function serveStatic(rootDir, pathname, res) {
   }
 }
 
+function xmlEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function siteBase(req) {
+  const env = String(process.env.SITE_URL || '').trim();
+  if (env) return env.replace(/\/+$/, '');
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || ('localhost:' + PORT)).split(',')[0].trim();
+  const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(:|\b)/i.test(host);
+  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || (isLocal ? 'http' : 'https');
+  return proto + '://' + host;
+}
+
+function sendText(res, type, body, cache) {
+  const buf = Buffer.from(body, 'utf8');
+  res.writeHead(200, {
+    'Content-Type': type,
+    'Content-Length': buf.length,
+    'Cache-Control': cache || 'public, max-age=3600'
+  });
+  res.end(buf);
+}
+
+function sendHtml(res, code, html, cache) {
+  const buf = Buffer.from(html, 'utf8');
+  res.writeHead(code, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': buf.length,
+    'Cache-Control': cache || 'public, max-age=60'
+  });
+  res.end(buf);
+}
+
+function slugify(s) {
+  return String(s == null ? '' : s)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+    .replace(/-+$/g, '');
+}
+
+// URL publique d'un produit : /produit/<nom-slug>-<8 premiers caracteres de l'id>
+function productSegment(p) {
+  const id = String((p && p.id) || '').replace(/-/g, '').toLowerCase();
+  const slug = slugify(p && p.name) || 'produit';
+  return id ? slug + '-' + id.slice(0, 8) : slug;
+}
+
+function productPath(p) {
+  return '/produit/' + productSegment(p);
+}
+
+function absoluteUrl(base, u) {
+  const raw = String(u == null ? '' : u).trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return base + (raw.startsWith('/') ? raw : '/' + raw);
+}
+
+function findProductBySegment(products, seg) {
+  const s = String(seg || '').trim().replace(/\/+$/, '');
+  if (!s) return null;
+  // 1) URL canonique exacte
+  const canon = products.find((x) => productSegment(x) === s);
+  if (canon) return canon;
+  // 2) id complet (UUID ou id court)
+  const exact = products.find((x) => String(x.id || '').toLowerCase() === s.toLowerCase());
+  if (exact) return exact;
+  // 3) tolerance : suffixe = debut de l'id (ex. slug different / id court)
+  let i = s.lastIndexOf('-');
+  while (i > -1) {
+    const tok = s.slice(i + 1).toLowerCase();
+    if (tok.length >= 2) {
+      const hit = products.find((x) => String(x.id || '').replace(/-/g, '').toLowerCase() === tok)
+        || products.find((x) => String(x.id || '').replace(/-/g, '').toLowerCase().startsWith(tok));
+      if (hit) return hit;
+    }
+    i = s.lastIndexOf('-', i - 1);
+  }
+  return null;
+}
+
+function allOptionsOut(p) {
+  const opts = Array.isArray(p.options) ? p.options.filter(Boolean) : [];
+  if (!opts.length) return p.available === false;
+  const st = p.optionStock && typeof p.optionStock === 'object' ? p.optionStock : {};
+  return opts.every((o) => st[o] === false) || p.available === false;
+}
+
+function effectivePrice(p) {
+  const price = Number(p.price) || 0;
+  const promo = p.promoPrice === null || p.promoPrice === undefined || String(p.promoPrice).trim() === ''
+    ? null
+    : Number(p.promoPrice) || 0;
+  const usePromo = promo !== null && promo > 0 && promo < price;
+  return { price: price, promo: usePromo ? promo : null, final: usePromo ? promo : price };
+}
+
+function renderLongDescServer(raw) {
+  const txt = String(raw || '');
+  if (!txt.trim()) return '';
+  let html = '';
+  const re = /\[image\]([\s\S]*?)\[\/image\]/gi;
+  let last = 0;
+  let m;
+  const para = (block) => block.split(/\n+/).map((par) => {
+    const t = par.trim();
+    if (!t) return '';
+    if (/^[-•*]\s+/.test(t)) return '<p class="li">' + xmlEscape(t) + '</p>';
+    return '<p>' + xmlEscape(t) + '</p>';
+  }).join('');
+  while ((m = re.exec(txt)) !== null) {
+    if (txt.slice(last, m.index).trim()) html += para(txt.slice(last, m.index));
+    const url = m[1].split('\n').map((x) => x.trim()).filter(Boolean)[0] || '';
+    if (url) html += '<figure class="fig"><img src="' + xmlEscape(absoluteUrl('', url)) + '" alt="' + xmlEscape('') + '" loading="lazy"></figure>';
+    last = m.index + m[0].length;
+  }
+  if (txt.slice(last).trim()) html += para(txt.slice(last));
+  return html;
+}
+
+function buildSitemap(req) {
+  const base = siteBase(req);
+  const products = readData('products.json', []);
+  const visible = products.filter((p) => p && p.visible !== false && p.name && p.id);
+  const today = new Date().toISOString().slice(0, 10);
+  const lines = [];
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
+  lines.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">');
+  lines.push('  <url>');
+  lines.push('    <loc>' + xmlEscape(base + '/') + '</loc>');
+  lines.push('    <lastmod>' + today + '</lastmod>');
+  lines.push('    <changefreq>daily</changefreq>');
+  lines.push('    <priority>1.0</priority>');
+  lines.push('  </url>');
+  visible.forEach((p) => {
+    const lm = String(p.createdAt || '').slice(0, 10) || today;
+    lines.push('  <url>');
+    lines.push('    <loc>' + xmlEscape(base + productPath(p)) + '</loc>');
+    lines.push('    <lastmod>' + lm + '</lastmod>');
+    lines.push('    <changefreq>weekly</changefreq>');
+    lines.push('    <priority>0.8</priority>');
+    const img = absoluteUrl(base, p.image);
+    if (img) {
+      lines.push('    <image:image>');
+      lines.push('      <image:loc>' + xmlEscape(img) + '</image:loc>');
+      lines.push('      <image:title>' + xmlEscape(p.name) + '</image:title>');
+      lines.push('    </image:image>');
+    }
+    lines.push('  </url>');
+  });
+  lines.push('</urlset>');
+  return lines.join('\n');
+}
+
+function buildRobots(req) {
+  const base = siteBase(req);
+  return [
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /admin/',
+    'Disallow: /api/',
+    'Disallow: /uploads/tmp',
+    '',
+    'Sitemap: ' + base + '/sitemap.xml',
+    ''
+  ].join('\n');
+}
+
+const PRODUCT_CSS = [
+  ':root{--p:#00c795;--ink:#0d1b1e;--muted:#6b8087;--line:#e3eaee;--bg:#f6f9fa}',
+  '*{box-sizing:border-box}',
+  'body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}',
+  'a{color:inherit}',
+  '.wrap{max-width:1060px;margin:0 auto;padding:0 16px}',
+  '.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}',
+  '.top .wrap{display:flex;align-items:center;gap:12px;justify-content:space-between;min-height:60px}',
+  '.brand{display:flex;align-items:center;gap:10px;font-weight:800;text-decoration:none}',
+  '.brand img{width:34px;height:34px;border-radius:50%;object-fit:cover;background:#eef3f8}',
+  '.back{font-size:14px;font-weight:700;text-decoration:none;border:1px solid var(--line);padding:8px 14px;border-radius:100px;background:#fff}',
+  '.crumbs{font-size:13px;color:var(--muted);padding:14px 0 0}',
+  '.crumbs a{text-decoration:none}.crumbs a:hover{text-decoration:underline}',
+  '.prod{display:grid;grid-template-columns:1fr 1fr;gap:32px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin:16px 0 26px}',
+  '.pimg{background:#eef3f8;border-radius:14px;display:flex;align-items:center;justify-content:center;aspect-ratio:1;overflow:hidden}',
+  '.pimg img{width:100%;height:100%;object-fit:contain}',
+  '.gal{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}',
+  '.gal img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#eef3f8}',
+  'h1{font-size:26px;line-height:1.2;margin:0 0 12px}',
+  '.metas{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}',
+  '.chip{font-size:12px;font-weight:700;background:#f1f6f7;border:1px solid var(--line);border-radius:100px;padding:5px 10px;color:#33525a}',
+  '.price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 6px}',
+  '.price .now{font-size:28px;font-weight:900}',
+  '.price .old{font-size:16px;color:var(--muted);text-decoration:line-through}',
+  '.price .off{font-size:12px;font-weight:900;color:#fff;background:#e23838;border-radius:100px;padding:4px 9px}',
+  '.stock{font-size:13px;font-weight:800;margin:0 0 14px}',
+  '.stock.ok{color:#0a8f5b}.stock.ko{color:#cf2b2b}',
+  '.desc{font-size:15px;line-height:1.55;color:#25454d;margin:0 0 18px;white-space:pre-line}',
+  '.cta{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--p);color:#042018;font-weight:900;font-size:16px;text-decoration:none;padding:14px 18px;border-radius:100px}',
+  '.cta:hover{filter:brightness(0.96)}',
+  '.cta2{display:inline-flex;align-items:center;justify-content:center;width:100%;margin-top:10px;background:#fff;border:1px solid var(--line);color:var(--ink);font-weight:700;font-size:14px;text-decoration:none;padding:12px 18px;border-radius:100px}',
+  '.opts{margin:16px 0 0;font-size:14px}',
+  '.opts .t{font-weight:800;margin-bottom:6px}',
+  '.opt{display:inline-block;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:100px;padding:6px 12px;margin:0 6px 6px 0}',
+  '.opt.off{color:#b3c0c5;text-decoration:line-through}',
+  '.long{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin:0 0 26px}',
+  '.long h2{font-size:18px;margin:0 0 10px}',
+  '.long p{font-size:15px;line-height:1.6;color:#25454d;margin:0 0 10px}',
+  '.long p.li{padding-left:14px;margin:0 0 6px}',
+  '.long .fig{margin:14px 0}',
+  '.long .fig img{max-width:100%;height:auto;border-radius:12px;display:block}',
+  '.foot{background:#0d1b1e;color:#c9d8dc;font-size:13px;padding:22px 0;line-height:1.7}',
+  '.foot a{color:#fff;text-decoration:none}',
+  '.foot .wrap{display:flex;flex-wrap:wrap;gap:10px 26px;justify-content:space-between}',
+  '@media(max-width:760px){.prod{grid-template-columns:1fr;gap:18px;padding:16px}h1{font-size:21px}.price .now{font-size:24px}}'
+].join('\n');
+
+function renderProductPage(req, p, s, cats, canonical) {
+  const base = siteBase(req);
+  const store = String(s.storeName || 'Vapo Store');
+  const ep = effectivePrice(p);
+  const out = allOptionsOut(p);
+  const img = absoluteUrl(base, p.image || '/images/placeholder.svg');
+  const cat = (cats || []).find((c) => c.id === p.category);
+  const sub = cat && (cat.subs || []).find((x) => x.id === p.subcategory);
+  const catName = cat ? String(cat.name || '') : '';
+  const subName = sub ? String(sub.name || '') : '';
+  const flavors = Array.isArray(p.flavors) ? p.flavors.filter(Boolean) : String(p.flavor || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const short = String(p.description || '').trim();
+  const plainLong = String(p.longDescription || '').replace(/\[image\][\s\S]*?\[\/image\]/gi, ' ').replace(/\s+/g, ' ').trim();
+  const metaDesc = (short || plainLong || (p.name + ' disponible chez ' + store)).slice(0, 300);
+  const priceTxt = formatPrice(ep.final, s);
+  const wa = 'https://wa.me/' + String(s.whatsapp || '').replace(/\D/g, '') + '?text=' +
+    encodeURIComponent('Bonjour, je souhaite commander :\n• ' + p.name + '\n• Prix : ' + priceTxt + '\n\n' + canonical);
+
+  const chips = [];
+  if (p.marque) chips.push('Marque : ' + p.marque);
+  if (p.contenance) chips.push(p.contenance);
+  if (p.taux) chips.push(p.taux);
+  if (p.badge) chips.push(p.badge);
+
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.name,
+    image: [img],
+    description: metaDesc,
+    sku: String(p.id || ''),
+    brand: { '@type': 'Brand', name: String(p.marque || store) },
+    offers: {
+      '@type': 'Offer',
+      url: canonical,
+      priceCurrency: 'MGA',
+      price: String(ep.final),
+      availability: out ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      seller: { '@type': 'Organization', name: store }
+    }
+  };
+
+  const gallery = (Array.isArray(p.gallery) ? p.gallery : []).filter(Boolean).slice(0, 8);
+  const opts = Array.isArray(p.options) ? p.options.filter(Boolean) : [];
+
+  const crumbs = ['<a href="/">Accueil</a>'];
+  if (cat) crumbs.push('<a href="/#cat/' + encodeURIComponent(cat.id) + '">' + xmlEscape(catName) + '</a>');
+  if (sub) crumbs.push('<a href="/#cat/' + encodeURIComponent(cat.id) + '/sub/' + encodeURIComponent(sub.id) + '">' + xmlEscape(subName) + '</a>');
+  crumbs.push('<span>' + xmlEscape(p.name) + '</span>');
+
+  return '<!DOCTYPE html>\n' +
+    '<html lang="fr">\n<head>\n' +
+    '<meta charset="UTF-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    '<title>' + xmlEscape(p.name + ' | ' + store) + '</title>\n' +
+    '<meta name="description" content="' + xmlEscape(metaDesc) + '">\n' +
+    '<meta name="robots" content="index, follow">\n' +
+    '<link rel="canonical" href="' + xmlEscape(canonical) + '">\n' +
+    '<meta property="og:type" content="product">\n' +
+    '<meta property="og:site_name" content="' + xmlEscape(store) + '">\n' +
+    '<meta property="og:title" content="' + xmlEscape(p.name) + '">\n' +
+    '<meta property="og:description" content="' + xmlEscape(metaDesc) + '">\n' +
+    '<meta property="og:url" content="' + xmlEscape(canonical) + '">\n' +
+    '<meta property="og:image" content="' + xmlEscape(img) + '">\n' +
+    '<meta name="twitter:card" content="summary_large_image">\n' +
+    '<link rel="icon" href="data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><text y=\'80\' font-size=\'80\'>💨</text></svg>">\n' +
+    '<script type="application/ld+json">' + JSON.stringify(ld) + '</script>\n' +
+    '<style>\n' + PRODUCT_CSS + '\n</style>\n' +
+    '</head>\n<body>\n' +
+    '<header class="top"><div class="wrap">' +
+      '<a class="brand" href="/">' + (s.logoImage ? '<img src="' + xmlEscape(s.logoImage) + '" alt="">' : '') + '<span>' + xmlEscape(store) + '</span></a>' +
+      '<a class="back" href="/">← Toute la boutique</a>' +
+    '</div></header>\n' +
+    '<div class="wrap"><nav class="crumbs">' + crumbs.join(' › ') + '</nav></div>\n' +
+    '<main class="wrap">\n' +
+      '<article class="prod">' +
+        '<div><div class="pimg"><img src="' + xmlEscape(img) + '" alt="' + xmlEscape(p.name) + '" fetchpriority="high"></div>' +
+          (gallery.length ? '<div class="gal">' + gallery.map((g) => '<img src="' + xmlEscape(absoluteUrl('', g)) + '" alt="' + xmlEscape(p.name) + '" loading="lazy">').join('') + '</div>' : '') +
+        '</div>' +
+        '<div class="pinfo">' +
+          '<h1>' + xmlEscape(p.name) + '</h1>' +
+          (chips.length ? '<div class="metas">' + chips.map((c) => '<span class="chip">' + xmlEscape(c) + '</span>').join('') + '</div>' : '') +
+          '<div class="price">' +
+            (ep.promo !== null ? '<span class="now">' + xmlEscape(formatPrice(ep.promo, s)) + '</span><span class="old">' + xmlEscape(formatPrice(ep.price, s)) + '</span><span class="off">-' + Math.round((1 - ep.promo / ep.price) * 100) + '%</span>' : '<span class="now">' + xmlEscape(priceTxt) + '</span>') +
+          '</div>' +
+          '<div class="stock ' + (out ? 'ko' : 'ok') + '">' + (out ? 'Rupture de stock' : '✔ En stock') + '</div>' +
+          (short ? '<p class="desc">' + xmlEscape(short) + '</p>' : '') +
+          '<a class="cta" href="' + xmlEscape(wa) + '" target="_blank" rel="noopener">Commander sur WhatsApp</a>' +
+          '<a class="cta2" href="/">Voir tous nos produits</a>' +
+          (opts.length ? '<div class="opts"><div class="t">Options disponibles</div>' + opts.map((o) => {
+            const off = p.optionStock && p.optionStock[o] === false;
+            const op = p.optionPrices && p.optionPrices[o] != null ? ' — ' + formatPrice(Number(p.optionPrices[o]), s) : '';
+            return '<span class="opt' + (off ? ' off' : '') + '">' + xmlEscape(o + op) + (off ? ' (rupture)' : '') + '</span>';
+          }).join('') + '</div>' : '') +
+        '</div>' +
+      '</article>\n' +
+      (p.longDescription ? '<section class="long"><h2>Description</h2>' + renderLongDescServer(p.longDescription) + '</section>' : '') +
+    '</main>\n' +
+    '<footer class="foot"><div class="wrap">' +
+      '<div><strong>' + xmlEscape(store) + '</strong>' + (s.address ? '<br>' + xmlEscape(String(s.address).trim()) : '') + (s.hours ? '<br>' + xmlEscape(String(s.hours).trim()) : '') + '</div>' +
+      '<div>' + (s.phone ? 'Tél : <a href="tel:' + xmlEscape(String(s.phone).replace(/[^\d+]/g, '')) + '">' + xmlEscape(String(s.phone).trim()) + '</a><br>' : '') +
+        '<a href="/">Boutique</a> · <a href="' + xmlEscape(wa) + '" target="_blank" rel="noopener">WhatsApp</a></div>' +
+    '</div></footer>\n' +
+    '</body>\n</html>';
+}
+
+function renderNotFoundPage(req, s) {
+  const base = siteBase(req);
+  const store = String((s && s.storeName) || 'Vapo Store');
+  return '<!DOCTYPE html>\n<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<meta name="robots" content="noindex, follow"><title>Produit introuvable | ' + xmlEscape(store) + '</title>' +
+    '<link rel="canonical" href="' + xmlEscape(base + '/') + '"><style>' + PRODUCT_CSS + '</style></head><body>' +
+    '<main class="wrap" style="padding:60px 16px;text-align:center">' +
+    '<h1>Produit introuvable</h1><p style="color:#6b8087">Ce produit n\'existe plus ou a été retiré de la boutique.</p>' +
+    '<p><a class="cta" style="max-width:320px;margin:18px auto 0" href="/">Retour à la boutique</a></p>' +
+    '</main></body></html>';
+}
+
+function serveProductPage(req, res, seg) {
+  const products = readData('products.json', []);
+  const p = findProductBySegment(products, seg);
+  const s = getSettings();
+  if (!p || p.visible === false) {
+    return sendHtml(res, 404, renderNotFoundPage(req, s), 'no-store');
+  }
+  const canonicalPath = productPath(p);
+  if (String(seg).replace(/\/+$/, '') !== productSegment(p)) {
+    res.writeHead(301, { Location: siteBase(req) + canonicalPath, 'Cache-Control': 'no-store' });
+    return res.end();
+  }
+  const cats = readData('categories.json', []);
+  return sendHtml(res, 200, renderProductPage(req, p, s, cats, siteBase(req) + canonicalPath));
+}
+
+
+function buildRobots(req) {
+  const base = siteBase(req);
+  return [
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /admin/',
+    'Disallow: /api/',
+    'Disallow: /uploads/tmp',
+    '',
+    'Sitemap: ' + base + '/sitemap.xml',
+    ''
+  ].join('\n');
+}
+
 const IMG_MAX_WIDTH = 1000;
 const IMG_QUALITY = 90;
 
@@ -258,7 +633,8 @@ function methodLabel(m) {
 function formatPrice(n, s) {
   const num = Number(n || 0);
   const str = num.toLocaleString('fr-FR');
-  return s.currencyPosition === 'before' ? s.currency + ' ' + str : str + ' ' + s.currency;
+  const cur = (s && s.currency) || 'Ar';
+  return s && s.currencyPosition === 'before' ? cur + ' ' + str : str + ' ' + cur;
 }
 
 function buildWhatsAppMessage(order, s) {
@@ -867,6 +1243,25 @@ const server = http.createServer((req, res) => {
     return;
   }
   const pathname = decodeURIComponent(url.pathname);
+
+  if (pathname === '/sitemap.xml') {
+    sendText(res, 'application/xml; charset=utf-8', buildSitemap(req), 'public, max-age=600');
+    return;
+  }
+  if (pathname === '/robots.txt') {
+    sendText(res, 'text/plain; charset=utf-8', buildRobots(req), 'public, max-age=600');
+    return;
+  }
+  if (pathname === '/produit' || pathname === '/produit/') {
+    res.writeHead(301, { Location: '/', 'Cache-Control': 'no-store' });
+    res.end();
+    return;
+  }
+  const productMatch = pathname.match(/^\/produit\/(.+)$/);
+  if (productMatch) {
+    serveProductPage(req, res, productMatch[1]);
+    return;
+  }
 
   if (pathname.startsWith('/api/')) {
     handleApi(req, res, pathname);
