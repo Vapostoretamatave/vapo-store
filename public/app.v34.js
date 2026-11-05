@@ -172,6 +172,12 @@
     return c ? c.name : '';
   }
 
+  // Slug d'une catégorie (meme regle que le serveur : /categorie/<slug>)
+  function categoryPath(c) {
+    var slug = slugify(c && c.name) || String((c && c.id) || '').toLowerCase();
+    return '/categorie/' + slug;
+  }
+
   function flavorList() {
     var seen = {}, list = [];
     state.products.forEach(function (p) {
@@ -342,6 +348,9 @@
         '<div><h4>Suivez-nous</h4>' + social + '</div>' +
       '</div>' +
       payBlock +
+      ((state.categories && state.categories.length) ? '<div class="container footer-cats"><strong>Catégories :</strong> ' + state.categories.map(function (c) {
+        return '<a href="' + esc(categoryPath(c)) + '">' + esc(c.name) + '</a>';
+      }).join('') + '</div>' : '') +
       '<div class="container footer-note">Vente réservée aux adultes - 18 ans minimum. '+ esc(s.storeName) + ' &copy; ' + new Date().getFullYear() + '</div>';
     $('waFloat').href = 'https://wa.me/' + s.whatsapp.replace(/\D/g, '') + '?text=' + encodeURIComponent('Bonjour ' + s.storeName + ', je voudrais des informations sur vos produits.');
     $('waTop').href = $('waFloat').href;

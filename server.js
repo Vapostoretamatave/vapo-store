@@ -269,6 +269,29 @@ function productPath(p) {
   return '/produit/' + productSegment(p);
 }
 
+function categorySegment(cat) {
+  return slugify(cat && cat.name) || String((cat && cat.id) || 'categorie').toLowerCase();
+}
+
+function subcategorySegment(sub) {
+  return slugify(sub && sub.name) || String((sub && sub.id) || 'sous-categorie').toLowerCase();
+}
+
+function categoryPath(cat, sub) {
+  const base = '/categorie/' + categorySegment(cat);
+  return sub ? base + '/' + subcategorySegment(sub) : base;
+}
+
+function findCategoryBySegment(cats, seg) {
+  const s = String(seg || '').toLowerCase();
+  return (cats || []).find((c) => categorySegment(c) === s || String(c.id || '').toLowerCase() === s) || null;
+}
+
+function findSubBySegment(cat, seg) {
+  const s = String(seg || '').toLowerCase();
+  return ((cat && cat.subs) || []).find((x) => subcategorySegment(x) === s || String(x.id || '').toLowerCase() === s) || null;
+}
+
 function absoluteUrl(base, u) {
   const raw = String(u == null ? '' : u).trim();
   if (!raw) return '';
@@ -356,6 +379,24 @@ function buildSitemap(req) {
   lines.push('    <changefreq>daily</changefreq>');
   lines.push('    <priority>1.0</priority>');
   lines.push('  </url>');
+  // Pages categorie et sous-categorie (listes de produits, indexables)
+  const catsForMap = readData('categories.json', []);
+  catsForMap.forEach((cat) => {
+    lines.push('  <url>');
+    lines.push('    <loc>' + xmlEscape(base + categoryPath(cat)) + '</loc>');
+    lines.push('    <lastmod>' + latest + '</lastmod>');
+    lines.push('    <changefreq>weekly</changefreq>');
+    lines.push('    <priority>0.7</priority>');
+    lines.push('  </url>');
+    (cat.subs || []).forEach((sub) => {
+      lines.push('  <url>');
+      lines.push('    <loc>' + xmlEscape(base + categoryPath(cat, sub)) + '</loc>');
+      lines.push('    <lastmod>' + latest + '</lastmod>');
+      lines.push('    <changefreq>weekly</changefreq>');
+      lines.push('    <priority>0.6</priority>');
+      lines.push('  </url>');
+    });
+  });
   visible.forEach((p) => {
     const lm = String(p.createdAt || '').slice(0, 10) || today;
     lines.push('  <url>');
@@ -435,8 +476,29 @@ const PRODUCT_CSS = [
   '.foot{background:#0d1b1e;color:#c9d8dc;font-size:13px;padding:22px 0;line-height:1.7}',
   '.foot a{color:#fff;text-decoration:none}',
   '.foot .wrap{display:flex;flex-wrap:wrap;gap:10px 26px;justify-content:space-between}',
-  '@media(max-width:760px){.prod{grid-template-columns:1fr;gap:18px;padding:16px}h1{font-size:21px}.price .now{font-size:24px}}'
+  '.foot .cats{flex-basis:100%;border-top:1px solid rgba(255,255,255,.14);padding-top:12px;margin-top:2px}',
+  '.foot .cats a{display:inline-block;margin-right:12px;color:#fff}',
+  '@media(max-width:760px){.prod{grid-template-columns:1fr;gap:18px;padding:16px}h1{font-size:21px}.price .now{font-size:24px}}',
+  '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin:18px 0 28px}',
+  '.ccard{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;position:relative}',
+  '.ccard img{width:100%;aspect-ratio:1;object-fit:contain;background:#eef3f8}',
+  '.ccard .cbody{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}',
+  '.ccard .cname{font-size:14px;font-weight:700;line-height:1.3}',
+  '.ccard .cprice{font-size:15px;font-weight:900;margin-top:auto}',
+  '.ccard .cold{font-size:12px;color:var(--muted);text-decoration:line-through;margin-right:6px}',
+  '.ccard .cr{position:absolute;top:8px;left:8px;background:#2b3a3f;color:#fff;font-size:10px;font-weight:800;padding:3px 7px;border-radius:100px}',
+  '.ccard.off img{opacity:.55}',
+  '.lead{font-size:14px;color:var(--muted);margin:0 0 4px}',
+  '@media(max-width:760px){.grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}}'
 ].join('\n');
+
+function footerCats(cats) {
+  const list = (cats || []).filter((c) => c && c.name && c.id);
+  if (!list.length) return '';
+  return '<div class="cats">Catégories : ' + list.map((c) =>
+    '<a href="' + xmlEscape(categoryPath(c)) + '">' + xmlEscape(c.name) + '</a>'
+  ).join(' · ') + '</div>';
+}
 
 function renderProductPage(req, p, s, cats, canonical) {
   const base = siteBase(req);
@@ -485,8 +547,8 @@ function renderProductPage(req, p, s, cats, canonical) {
   const opts = Array.isArray(p.options) ? p.options.filter(Boolean) : [];
 
   const crumbs = ['<a href="/">Accueil</a>'];
-  if (cat) crumbs.push('<a href="/#cat/' + encodeURIComponent(cat.id) + '">' + xmlEscape(catName) + '</a>');
-  if (sub) crumbs.push('<a href="/#cat/' + encodeURIComponent(cat.id) + '/sub/' + encodeURIComponent(sub.id) + '">' + xmlEscape(subName) + '</a>');
+  if (cat) crumbs.push('<a href="' + xmlEscape(categoryPath(cat)) + '">' + xmlEscape(catName) + '</a>');
+  if (cat && sub) crumbs.push('<a href="' + xmlEscape(categoryPath(cat, sub)) + '">' + xmlEscape(subName) + '</a>');
   crumbs.push('<span>' + xmlEscape(p.name) + '</span>');
 
   return '<!DOCTYPE html>\n' +
@@ -541,6 +603,7 @@ function renderProductPage(req, p, s, cats, canonical) {
       '<div><strong>' + xmlEscape(store) + '</strong>' + (s.address ? '<br>' + xmlEscape(String(s.address).trim()) : '') + (s.hours ? '<br>' + xmlEscape(String(s.hours).trim()) : '') + '</div>' +
       '<div>' + (s.phone ? 'Tél : <a href="tel:' + xmlEscape(String(s.phone).replace(/[^\d+]/g, '')) + '">' + xmlEscape(String(s.phone).trim()) + '</a><br>' : '') +
         '<a href="/">Boutique</a> · <a href="' + xmlEscape(wa) + '" target="_blank" rel="noopener">WhatsApp</a></div>' +
+      footerCats(cats) +
     '</div></footer>\n' +
     '</body>\n</html>';
 }
@@ -555,6 +618,110 @@ function renderNotFoundPage(req, s) {
     '<h1>Produit introuvable</h1><p style="color:#6b8087">Ce produit n\'existe plus ou a été retiré de la boutique.</p>' +
     '<p><a class="cta" style="max-width:320px;margin:18px auto 0" href="/">Retour à la boutique</a></p>' +
     '</main></body></html>';
+}
+
+function renderCategoryPage(req, opts) {
+  const base = siteBase(req);
+  const s = opts.settings;
+  const store = String(s.storeName || 'Vapo Store');
+  const cat = opts.cat;
+  const sub = opts.sub;
+  const list = opts.products;
+  const canonical = opts.canonical;
+  const label = sub ? String(sub.name) : String(cat.name);
+  const parent = sub ? String(cat.name) : '';
+  const title = label + ' | ' + store;
+  const desc = 'Découvrez nos ' + list.length + ' ' + label.toLowerCase() + ' disponibles chez ' + store +
+    ' à Tamatave. Produits originaux, commande facile sur WhatsApp ou retrait en magasin.';
+  const wa = 'https://wa.me/' + String(s.whatsapp || '').replace(/\D/g, '') + '?text=' +
+    encodeURIComponent('Bonjour, je voudrais des informations sur vos ' + label.toLowerCase() + '.');
+
+  const crumbs = ['<a href="/">Accueil</a>', '<a href="/categorie/' + encodeURIComponent(categorySegment(cat)) + '">' + xmlEscape(cat.name) + '</a>'];
+  if (sub) crumbs.push('<span>' + xmlEscape(sub.name) + '</span>');
+
+  const bc = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: base + '/' },
+      { '@type': 'ListItem', position: 2, name: String(cat.name), item: base + '/categorie/' + categorySegment(cat) }
+    ]
+  };
+  if (sub) bc.itemListElement.push({ '@type': 'ListItem', position: 3, name: String(sub.name), item: canonical });
+
+  const cards = list.map((p) => {
+    const ep = effectivePrice(p);
+    const out = allOptionsOut(p);
+    const img = absoluteUrl('', p.image || '/images/placeholder.svg');
+    return '<a class="ccard' + (out ? ' off' : '') + '" href="' + xmlEscape(productPath(p)) + '">' +
+      (out ? '<span class="cr">Rupture</span>' : '') +
+      '<img src="' + xmlEscape(img) + '" alt="' + xmlEscape(p.name) + '" loading="lazy">' +
+      '<span class="cbody">' +
+        '<span class="cname">' + xmlEscape(p.name) + '</span>' +
+        '<span class="cprice">' + (ep.promo !== null ? '<span class="cold">' + xmlEscape(formatPrice(ep.price, s)) + '</span>' + xmlEscape(formatPrice(ep.promo, s)) : xmlEscape(formatPrice(ep.final, s))) + '</span>' +
+      '</span></a>';
+  }).join('');
+
+  return '<!DOCTYPE html>\n<html lang="fr"><head>' +
+    '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>' + xmlEscape(title) + '</title>' +
+    '<meta name="description" content="' + xmlEscape(desc) + '">' +
+    '<meta name="robots" content="index, follow">' +
+    '<link rel="canonical" href="' + xmlEscape(canonical) + '">' +
+    '<meta property="og:type" content="website">' +
+    '<meta property="og:site_name" content="' + xmlEscape(store) + '">' +
+    '<meta property="og:title" content="' + xmlEscape(title) + '">' +
+    '<meta property="og:description" content="' + xmlEscape(desc) + '">' +
+    '<meta property="og:url" content="' + xmlEscape(canonical) + '">' +
+    '<link rel="icon" href="data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><text y=\'80\' font-size=\'80\'>💨</text></svg>">' +
+    '<script type="application/ld+json">' + JSON.stringify(bc) + '</script>' +
+    '<style>' + PRODUCT_CSS + '</style></head><body>' +
+    '<header class="top"><div class="wrap">' +
+      '<a class="brand" href="/">' + (s.logoImage ? '<img src="' + xmlEscape(s.logoImage) + '" alt="">' : '') + '<span>' + xmlEscape(store) + '</span></a>' +
+      '<a class="back" href="/">← Toute la boutique</a>' +
+    '</div></header>' +
+    '<div class="wrap"><nav class="crumbs">' + crumbs.join(' › ') + '</nav></div>' +
+    '<main class="wrap">' +
+      '<h1>' + xmlEscape(label) + '</h1>' +
+      '<p class="lead">' + xmlEscape(list.length + ' produit(s)' + (parent ? ' · ' + parent : '')) + '</p>' +
+      '<div class="grid">' + (cards || '<p class="lead">Aucun produit disponible dans cette catégorie pour le moment.</p>') + '</div>' +
+      '<p style="margin:0 0 28px"><a class="cta" style="max-width:340px" href="' + xmlEscape(wa) + '" target="_blank" rel="noopener">Commander sur WhatsApp</a></p>' +
+    '</main>' +
+    '<footer class="foot"><div class="wrap">' +
+      '<div><strong>' + xmlEscape(store) + '</strong>' + (s.address ? '<br>' + xmlEscape(String(s.address).trim()) : '') + (s.hours ? '<br>' + xmlEscape(String(s.hours).trim()) : '') + '</div>' +
+      '<div>' + (s.phone ? 'Tél : <a href="tel:' + xmlEscape(String(s.phone).replace(/[^\d+]/g, '')) + '">' + xmlEscape(String(s.phone).trim()) + '</a><br>' : '') +
+        '<a href="/">Boutique</a> · <a href="' + xmlEscape(wa) + '" target="_blank" rel="noopener">WhatsApp</a></div>' +
+      footerCats(opts.cats) +
+    '</div></footer></body></html>';
+}
+
+function serveCategoryPage(req, res, catSeg, subSeg) {
+  const cats = readData('categories.json', []);
+  const s = getSettings();
+  const cat = findCategoryBySegment(cats, catSeg);
+  if (!cat) return sendHtml(res, 404, renderNotFoundPage(req, s), 'no-store');
+  const sub = subSeg ? findSubBySegment(cat, subSeg) : null;
+  if (subSeg && !sub) return sendHtml(res, 404, renderNotFoundPage(req, s), 'no-store');
+  const canonicalPath = categoryPath(cat, sub);
+  const requested = '/categorie/' + String(catSeg) + (subSeg ? '/' + String(subSeg) : '');
+  if (requested.toLowerCase() !== canonicalPath.toLowerCase()) {
+    res.writeHead(301, { Location: siteBase(req) + canonicalPath, 'Cache-Control': 'no-store' });
+    return res.end();
+  }
+  const products = readData('products.json', []).filter((p) => {
+    if (!p || p.visible === false || !p.name) return false;
+    if (String(p.category) !== String(cat.id)) return false;
+    if (sub && String(p.subcategory) !== String(sub.id)) return false;
+    return true;
+  });
+  return sendHtml(res, 200, renderCategoryPage(req, {
+    settings: s,
+    cat: cat,
+    sub: sub,
+    cats: cats,
+    products: products,
+    canonical: siteBase(req) + canonicalPath
+  }), 'public, max-age=60');
 }
 
 function serveProductPage(req, res, seg) {
@@ -1270,6 +1437,16 @@ const server = http.createServer((req, res) => {
   const productMatch = pathname.match(/^\/produit\/(.+)$/);
   if (productMatch) {
     serveProductPage(req, res, productMatch[1]);
+    return;
+  }
+  if (pathname === '/categorie' || pathname === '/categorie/') {
+    res.writeHead(301, { Location: '/', 'Cache-Control': 'no-store' });
+    res.end();
+    return;
+  }
+  const categoryMatch = pathname.match(/^\/categorie\/([^/]+)(?:\/([^/]+))?\/?$/);
+  if (categoryMatch) {
+    serveCategoryPage(req, res, decodeURIComponent(categoryMatch[1]), categoryMatch[2] ? decodeURIComponent(categoryMatch[2]) : '');
     return;
   }
 
