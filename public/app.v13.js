@@ -93,7 +93,27 @@
     }
   }
 
+  // URL propre d'une categorie / sous-categorie (meme regle de slug que le serveur.js)
+  function categoryPathOf(catId, subId) {
+    var cat = (state.categories || []).find(function (c) { return c.id === catId; });
+    if (!cat) return '';
+    var p = '/categorie/' + (slugify(cat.name) || String(cat.id).toLowerCase());
+    if (subId) {
+      var sb = (cat.subs || []).find(function (s) { return s.id === subId; });
+      if (!sb) return '';
+      p += '/' + (slugify(sb.name) || String(sb.id).toLowerCase());
+    }
+    return p;
+  }
+
   function writeHash() {
+    // Vue "categorie simple" (sans autre filtre) -> vraie URL indexable /categorie/...
+    // La navigation reste instantanee (replaceState, aucun rechargement).
+    if (!state.promoOnly && !state.search && state.category !== 'all' &&
+        (!state.subcategory || state.facet === 'sub')) {
+      var clean = categoryPathOf(state.category, state.subcategory);
+      if (clean) { history.replaceState(null, '', clean); return; }
+    }
     var h = '';
     if (state.promoOnly) {
       h = 'promo';
@@ -105,7 +125,8 @@
     } else if (state.search) {
       h = 'search/' + state.search;
     }
-    history.replaceState(null, '', h ? '#' + h : '#products');
+    // Les autres filtres n'ont pas de page dediee : on reste en # mais toujours depuis "/"
+    history.replaceState(null, '', '/' + (h ? '#' + h : '#products'));
   }
 
   var cart = loadCart();
