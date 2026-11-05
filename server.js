@@ -15,6 +15,8 @@ const ADMIN_DIR = path.join(ROOT, 'admin');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(PUBLIC_DIR, 'uploads');
 const PORT = process.env.PORT || 3000;
 const MAX_BODY = 30 * 1024 * 1024;
+// Domaine public officiel (utilise par le sitemap, robots.txt et les balises canonical)
+const PRIMARY_SITE = 'https://vapostoretamatave.com';
 
 for (const d of [DATA_DIR, PUBLIC_DIR, ADMIN_DIR, UPLOAD_DIR]) {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
@@ -219,6 +221,10 @@ function siteBase(req) {
   const host = String(req.headers['x-forwarded-host'] || req.headers.host || ('localhost:' + PORT)).split(',')[0].trim();
   const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(:|\b)/i.test(host);
   const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || (isLocal ? 'http' : 'https');
+  if (isLocal) return proto + '://' + host;
+  // Domaine principal : le .com. On force les URLs canoniques meme si la page
+  // est ouverte via *.onrender.com ou www.* (evite le contenu duplique).
+  if (/\.onrender\.com$/i.test(host) || /^(www\.)?vapostoretamatave\.com$/i.test(host)) return PRIMARY_SITE;
   return proto + '://' + host;
 }
 
@@ -337,12 +343,16 @@ function buildSitemap(req) {
   const products = readData('products.json', []);
   const visible = products.filter((p) => p && p.visible !== false && p.name && p.id);
   const today = new Date().toISOString().slice(0, 10);
+  const latest = visible.reduce((acc, p) => {
+    const d = String(p.createdAt || '').slice(0, 10);
+    return d && d > acc ? d : acc;
+  }, today);
   const lines = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">');
   lines.push('  <url>');
   lines.push('    <loc>' + xmlEscape(base + '/') + '</loc>');
-  lines.push('    <lastmod>' + today + '</lastmod>');
+  lines.push('    <lastmod>' + latest + '</lastmod>');
   lines.push('    <changefreq>daily</changefreq>');
   lines.push('    <priority>1.0</priority>');
   lines.push('  </url>');

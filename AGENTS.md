@@ -26,8 +26,8 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 - **robots.txt dynamique** : `GET /robots.txt` (`buildRobots()`) → `Allow: /`, `Disallow: /admin`, `/api/`, et ligne `Sitemap: <base>/sitemap.xml`. `siteBase()` déduit l'URL absolue des headers (`x-forwarded-proto`/`host`) ou de `SITE_URL` si défini.
 - **Pages produit indexables** : `GET /produit/<slug-du-nom>-<8 premiers car. de l'id>` (`serveProductPage` + `renderProductPage`) = page **HTML rendue côté serveur** (pas de JS requis) avec photo + galerie, prix (promo barrée + `-X%`), stock, marque/contenance/taux, options, description longue (balises `[image]…[/image]` rendues en `<figure>`), bouton WhatsApp, breadcrumb, `canonical`, Open Graph et **JSON-LD `Product`** (prix `MGA`, `InStock`/`OutOfStock`). `slugify()` + `productSegment()` sont dupliqués côté client (`public/app.js`) pour que les liens des cartes pointent vers la même URL ; le serveur accepte aussi `/produit/<id>` et redirige en **301** vers l'URL canonique. `/produit/<inconnu>` → 404 `noindex`.
 - **Liens internes (app.v47 / styles.css?v=37)** : la photo et le nom de chaque carte sont enveloppés dans `<a href="/produit/...">`. Un **clic normal garde la modale** (le handler fait `preventDefault`), mais **Ctrl/Cmd/Shift-clic ou clic-milieu ouvre la vraie page** ; Google suit les `href` → toutes les fiches sont liées depuis l'accueil.
-- `public/index.html` : `<meta name="robots" content="index, follow">`, `canonical https://vapo-store.onrender.com/`, balises Open Graph. L'admin reste `noindex`.
-- **Google Search Console** : ajouter la propriété `https://vapo-store.onrender.com`, puis Sitemaps → `sitemap.xml`. Le sitemap est aussi accessible sur `https://vapo-store.onrender.com/sitemap.xml`.
+- `public/index.html` : `<meta name="robots" content="index, follow">`, `canonical https://vapostoretamatave.com/`, balises Open Graph. L'admin reste `noindex`.
+- **Google Search Console** : propriété `vapostoretamatave.com` (propriété de domaine via DNS = couvre http/https + www), puis Sitemaps → `https://vapostoretamatave.com/sitemap.xml`. Le sitemap est aussi accessible via `https://vapo-store.onrender.com/sitemap.xml` mais il déclare les URLs en `.com` → toujours soumettre la version `.com`.
 
 ## Structure
 - `server.js` : tout le backend (API, fichiers statiques, auth). `handleApi()`, `normalizeProduct()`, `serveStatic()`.
@@ -43,7 +43,8 @@ Boutique vape en ligne + section admin. Node.js pur (aucun framework), stockage 
 
 ## Déploiement (EN LIGNE)
 - **Repo GitHub** : `https://github.com/Vapostoretamatave/vapo-store.git` (branche `main`).
-- **Site : https://vapo-store.onrender.com** (forfait Starter, disque persistant 1 Go monté sur `/data`).
+- **Site officiel : https://vapostoretamatave.com** (domaine perso branché sur le service Render ; `www.` et `http://` redirigent en 301 vers `https://vapostoretamatave.com`). URL technique : `https://vapo-store.onrender.com` (même app, forfait Starter, disque persistant 1 Go monté sur `/data`).
+- ⚠️ **Toutes les URLs canoniques** (sitemap, robots.txt, `canonical`, Open Graph, JSON-LD) utilisent le domaine `.com` : constante `PRIMARY_SITE` en haut de `server.js` (+ `siteBase()` qui force le `.com` quand on passe par `*.onrender.com` ou `www.`). En local, `siteBase()` renvoie `http://localhost:3000`. Si le domaine change : modifier `PRIMARY_SITE`, ou définir la variable d'env `SITE_URL` (prioritaire).
 - Mise à jour : `git add .` → `git commit` → `git push origin main` → Render redéploie automatiquement en ~2-3 min.
 - ⚠️ **Workflow DONNÉES** : les produits se créent/modifient depuis l'ADMIN EN LIGNE (instantané, rupture de stock/prix). Git ne sert QUE pour le code. Le disque (/data) est la source de vérité et le redéploiement ne l'écrase jamais.
 - **Variables d'env en prod** : `DATA_DIR=/data`, `UPLOAD_DIR=/data/uploads`.
