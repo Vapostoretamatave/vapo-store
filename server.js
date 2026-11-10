@@ -180,7 +180,33 @@ function requireAuth(req, res) {
   return false;
 }
 
-async function serveStatic(rootDir, pathname, res) {
+const IMAGE_EXT = /^\.(jpe?g|png|webp|gif|svg|ico|avif|bmp)$/;
+
+// En-tetes de cache pour un fichier image : ETag + Last-Modified permettent au
+// navigateur ET aux robots (Googlebot, Bingbot, IA) de revalider sans
+// retransferer le fichier (reponse 304 vide).
+function imageCacheHeaders(stat, immutable) {
+  return {
+    'ETag': '"' + stat.size.toString(16) + '-' + Math.floor(stat.mtimeMs).toString(16) + '"',
+    'Last-Modified': stat.mtime.toUTCString(),
+    'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600'
+  };
+}
+
+function isNotModified(req, headers, stat) {
+  const inm = String(req.headers['if-none-match'] || '').trim();
+  if (inm) {
+    return inm.split(',').map(function (s) { return s.trim(); }).indexOf(headers['ETag']) !== -1;
+  }
+  const ims = String(req.headers['if-modified-since'] || '').trim();
+  if (ims) {
+    const t = Date.parse(ims);
+    return !isNaN(t) && Math.floor(stat.mtimeMs / 1000) * 1000 <= t;
+  }
+  return false;
+}
+
+async function serveStatic(rootDir, pathname, req, res) {
   let rel = pathname || '/';
   if (rel === '/' || rel === '') rel = '/index.html';
   let filePath = path.normalize(path.join(rootDir, path.normalize(rel).replace(/^(\.\.(\/|\\|$))+/, '')));
@@ -189,16 +215,31 @@ async function serveStatic(rootDir, pathname, res) {
     return;
   }
   try {
-    const stat = fs.statSync(filePath);
+    let stat = fs.statSync(filePath);
     if (stat.isDirectory()) {
       filePath = path.join(filePath, 'index.html');
       if (!fs.existsSync(filePath)) {
         sendJSON(res, 404, { error: 'Introuvable' });
         return;
       }
+      stat = fs.statSync(filePath);
     }
     const ext = path.extname(filePath).toLowerCase();
-    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' };
+    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+    if (IMAGE_EXT.test(ext)) {
+      // Les uploads ont des noms horodates uniques -> jamais remplaces, donc
+      // cache 1 an sans risque. Les images statiques (/images/...) gardent 1 h.
+      const inUploads = path.resolve(rootDir) === path.resolve(UPLOAD_DIR);
+      const cache = imageCacheHeaders(stat, inUploads);
+      if (inUploads && isNotModified(req, cache, stat)) {
+        res.writeHead(304, cache);
+        res.end();
+        return;
+      }
+      Object.keys(cache).forEach(function (k) { headers[k] = cache[k]; });
+    } else {
+      headers['Cache-Control'] = 'no-store';
+    }
     res.writeHead(200, headers);
     fs.createReadStream(filePath).pipe(res);
   } catch (e) {
@@ -1455,14 +1496,14 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (pathname === '/admin' || pathname === '/admin/' || pathname.startsWith('/admin/')) {
-    serveStatic(ADMIN_DIR, pathname.replace(/^\/admin/, '') || '/', res);
+    serveStatic(ADMIN_DIR, pathname.replace(/^\/admin/, '') || '/', req, res);
     return;
   }
   if (pathname === '/uploads' || pathname.startsWith('/uploads/')) {
-    serveStatic(UPLOAD_DIR, pathname.replace(/^\/uploads/, '') || '/', res);
+    serveStatic(UPLOAD_DIR, pathname.replace(/^\/uploads/, '') || '/', req, res);
     return;
   }
-  serveStatic(PUBLIC_DIR, pathname, res);
+  serveStatic(PUBLIC_DIR, pathname, req, res);
 });
 
 server.listen(PORT, () => {
