@@ -106,6 +106,60 @@
     return p;
   }
 
+  // Au chargement d'une URL /categorie/<slug>[/<slug>] (Google, F5, lien partage),
+  // on retrouve la categorie et on reste dans la boutique : pas de page externe.
+  function readCategoryPath() {
+    var m = location.pathname.match(/^\/categorie\/([^\/]+)(?:\/([^\/]+))?\/?$/);
+    if (!m) return false;
+    var catSeg = decodeURIComponent(m[1]).toLowerCase();
+    var subSeg = m[2] ? decodeURIComponent(m[2]).toLowerCase() : '';
+    var cat = (state.categories || []).find(function (c) {
+      return (slugify(c.name) || String(c.id || '').toLowerCase()) === catSeg || String(c.id || '').toLowerCase() === catSeg;
+    });
+    if (!cat) return false;
+    var subId = '';
+    if (subSeg) {
+      var sb = (cat.subs || []).find(function (s) {
+        return (slugify(s.name) || String(s.id || '').toLowerCase()) === subSeg || String(s.id || '').toLowerCase() === subSeg;
+      });
+      if (sb) subId = sb.id;
+    }
+    state.promoOnly = false;
+    state.category = cat.id;
+    state.facet = 'sub';
+    state.subcategory = subId;
+    state.search = '';
+    $('searchInput').value = '';
+    return true;
+  }
+
+  // Fil d'Ariane rendu par le serveur sur les pages categorie : on le suit
+  // pendant la navigation SPA, et on le cache des qu'on quitte la categorie.
+  function syncCategoryCrumbs() {
+    var box = $('ssrCrumbs');
+    if (!box) return;
+    var clean = !state.promoOnly && !state.search && state.category !== 'all' &&
+      (!state.subcategory || state.facet === 'sub');
+    var path = clean ? categoryPathOf(state.category, state.subcategory) : '';
+    if (!path) {
+      box.hidden = true;
+      var st = state.settings || {};
+      if (st.storeName) document.title = st.storeName + ' - ' + (st.tagline || '');
+      return;
+    }
+    var html = '<a href="/">Accueil</a>';
+    var cat = (state.categories || []).find(function (c) { return c.id === state.category; });
+    if (cat) {
+      html += ' › <a href="' + esc(categoryPath(cat)) + '">' + esc(cat.name) + '</a>';
+      if (state.subcategory) html += ' › <span>' + esc(subName(state.subcategory)) + '</span>';
+    }
+    box.innerHTML = html;
+    box.hidden = false;
+    var s = state.settings || {};
+    var label = state.subcategory ? subName(state.subcategory) : (cat ? cat.name : 'Produits');
+    document.title = label + ' | ' + (s.storeName || 'Vapo Store');
+  }
+
   function writeHash() {
     // Vue "categorie simple" (sans autre filtre) -> vraie URL indexable /categorie/...
     // La navigation reste instantanee (replaceState, aucun rechargement).
@@ -313,7 +367,8 @@
       el.textContent = s.customCss;
       document.head.appendChild(el);
     }
-    document.title = s.storeName + ' - ' + s.tagline;
+    // Sur une page categorie, le titre SEO est rendu par le serveur : ne pas l'ecraser.
+    if (!$('ssrCrumbs')) document.title = s.storeName + ' - ' + s.tagline;
     $('brandName').textContent = s.logoText || s.storeName;
     $('brandTag').textContent = s.tagline;
     if (s.logoImage) {
@@ -760,6 +815,10 @@
     if (state.page > totalPages) state.page = totalPages;
     var view = list.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
     var catT = state.category === 'all' ? 'Tous les produits' : catName(state.category);
+    if (state.subcategory && state.facet === 'sub') {
+      var sLbl = subName(state.subcategory);
+      if (sLbl) catT = sLbl;
+    }
     $('sectionTitle').textContent = catT;
     var subCount = '';
     if (state.subcategory) {
@@ -819,6 +878,7 @@
         addToCart(p.id, '', 1);
       });
     });
+    syncCategoryCrumbs();
     writeHash();
     renderPager(totalPages);
   }
@@ -1352,7 +1412,10 @@ renderInitialPrice($('dlPrice'), p);
         renderTrust();
         renderFooter();
         renderNav();
-        if (location.hash && location.hash !== '#products' && location.hash !== '#/') {
+        if (readCategoryPath()) {
+          // URL /categorie/... : la boutique s'ouvre directement sur la categorie
+          renderProducts();
+        } else if (location.hash && location.hash !== '#products' && location.hash !== '#/') {
           readHash();
         } else {
           renderProducts();

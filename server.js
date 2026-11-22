@@ -661,6 +661,48 @@ function renderNotFoundPage(req, s) {
     '</main></body></html>';
 }
 
+// Cartes produit identiques dans la page "externe" et dans la boutique (SSR)
+function categoryCards(list, s) {
+  return (list || []).map((p) => {
+    const ep = effectivePrice(p);
+    const out = allOptionsOut(p);
+    const img = absoluteUrl('', p.image || '/images/placeholder.svg');
+    return '<a class="ccard' + (out ? ' off' : '') + '" href="' + xmlEscape(productPath(p)) + '">' +
+      (out ? '<span class="cr">Rupture</span>' : '') +
+      '<img src="' + xmlEscape(img) + '" alt="' + xmlEscape(p.name) + '" loading="lazy">' +
+      '<span class="cbody">' +
+        '<span class="cname">' + xmlEscape(p.name) + '</span>' +
+        '<span class="cprice">' + (ep.promo !== null ? '<span class="cold">' + xmlEscape(formatPrice(ep.price, s)) + '</span>' + xmlEscape(formatPrice(ep.promo, s)) : xmlEscape(formatPrice(ep.final, s))) + '</span>' +
+      '</span></a>';
+  }).join('');
+}
+
+// Donnees SEO communes aux deux rendus de page categorie
+function categorySeo(req, opts) {
+  const base = siteBase(req);
+  const s = opts.settings;
+  const cat = opts.cat;
+  const sub = opts.sub;
+  const list = opts.products || [];
+  const canonical = opts.canonical;
+  const label = sub ? String(sub.name) : String(cat.name);
+  const title = label + ' | ' + String(s.storeName || 'Vapo Store');
+  const desc = 'Découvrez nos ' + list.length + ' ' + label.toLowerCase() + ' disponibles chez ' + String(s.storeName || 'Vapo Store') +
+    ' à Tamatave. Produits originaux, commande facile sur WhatsApp ou retrait en magasin.';
+  const bc = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: base + '/' },
+      { '@type': 'ListItem', position: 2, name: String(cat.name), item: base + '/categorie/' + categorySegment(cat) }
+    ]
+  };
+  if (sub) bc.itemListElement.push({ '@type': 'ListItem', position: 3, name: String(sub.name), item: canonical });
+  const crumbs = ['<a href="/">Accueil</a>', '<a href="' + xmlEscape(categoryPath(cat)) + '">' + xmlEscape(cat.name) + '</a>'];
+  if (sub) crumbs.push('<span>' + xmlEscape(sub.name) + '</span>');
+  return { label, title, desc, bc, crumbs };
+}
+
 function renderCategoryPage(req, opts) {
   const base = siteBase(req);
   const s = opts.settings;
@@ -690,18 +732,7 @@ function renderCategoryPage(req, opts) {
   };
   if (sub) bc.itemListElement.push({ '@type': 'ListItem', position: 3, name: String(sub.name), item: canonical });
 
-  const cards = list.map((p) => {
-    const ep = effectivePrice(p);
-    const out = allOptionsOut(p);
-    const img = absoluteUrl('', p.image || '/images/placeholder.svg');
-    return '<a class="ccard' + (out ? ' off' : '') + '" href="' + xmlEscape(productPath(p)) + '">' +
-      (out ? '<span class="cr">Rupture</span>' : '') +
-      '<img src="' + xmlEscape(img) + '" alt="' + xmlEscape(p.name) + '" loading="lazy">' +
-      '<span class="cbody">' +
-        '<span class="cname">' + xmlEscape(p.name) + '</span>' +
-        '<span class="cprice">' + (ep.promo !== null ? '<span class="cold">' + xmlEscape(formatPrice(ep.price, s)) + '</span>' + xmlEscape(formatPrice(ep.promo, s)) : xmlEscape(formatPrice(ep.final, s))) + '</span>' +
-      '</span></a>';
-  }).join('');
+  const cards = categoryCards(list, s);
 
   return '<!DOCTYPE html>\n<html lang="fr"><head>' +
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
@@ -736,6 +767,80 @@ function renderCategoryPage(req, opts) {
     '</div></footer></body></html>';
 }
 
+// CSS minimal et SCOPE pour les elements rendus cote serveur dans la SPA :
+// on ne charge pas PRODUCT_CSS ici (il redéfinirait le body, le header, .grid, ...).
+const SSR_CATEGORY_CSS = [
+  '.ssr-crumbs{font-size:13px;color:#6b8087;padding:14px 0 0}',
+  '.ssr-crumbs a{text-decoration:none}.ssr-crumbs a:hover{text-decoration:underline}',
+  '.ssr-crumbs[hidden]{display:none}',
+  '#grid .ccard{display:flex;flex-direction:column;background:#fff;border:1px solid #e3eaee;border-radius:14px;overflow:hidden;text-decoration:none;position:relative;color:inherit}',
+  '#grid .ccard img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#f6f9fa}',
+  '#grid .ccard .cbody{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}',
+  '#grid .ccard .cname{font-size:14px;font-weight:700;line-height:1.3}',
+  '#grid .ccard .cprice{font-size:15px;font-weight:900;margin-top:auto}',
+  '#grid .ccard .cold{font-size:12px;color:#6b8087;text-decoration:line-through;margin-right:6px}',
+  '#grid .ccard .cr{position:absolute;top:8px;left:8px;background:#2b3a3f;color:#fff;font-size:10px;font-weight:800;padding:3px 7px;border-radius:100px}',
+  '#grid .ccard.off img{opacity:.55}',
+  '.ssr-empty{color:#6b8087;font-size:14px}',
+  '@media(max-width:600px){#grid .ccard .cname{font-size:13px}}'
+].join('\n');
+
+// La page categorie est désormais LA BOUTIQUE elle-meme : meme header, menu,
+// panier, filtres et footer. Le HTML contient en plus le H1, le fil d'Ariane,
+// le JSON-LD et les cartes produit (rendu serveur) pour Google/les IA.
+function renderCategorySpaPage(req, opts) {
+  const seo = categorySeo(req, opts);
+  const s = opts.settings;
+  const list = opts.products || [];
+  let html;
+  try {
+    html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
+  } catch (e) {
+    return renderCategoryPage(req, opts);
+  }
+  // Fonction reductrice pour eviter l interpretation des $ dans les remplacements
+  const set = (needle, replacement) => {
+    html = html.replace(needle, function () { return replacement; });
+  };
+
+  set(/<title>[\s\S]*?<\/title>/, '<title>' + xmlEscape(seo.title) + '</title>');
+  set(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + xmlEscape(seo.desc) + '">');
+  set(/<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="' + xmlEscape(opts.canonical) + '">');
+  set(/<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="' + xmlEscape(opts.canonical) + '">');
+  set(/<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="' + xmlEscape(seo.label) + '">');
+  set(/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="' + xmlEscape(seo.desc) + '">');
+
+  // Navigation et footer deja remplis (l'app les remplace des que le JS demarre)
+  const navLinks = '<a class="nav-link" href="/">Tous les produits</a>' + (opts.cats || [])
+    .filter((c) => c && c.name && c.id)
+    .map((c) => '<a class="nav-link" href="' + xmlEscape(categoryPath(c)) + '">' + xmlEscape(c.name) + '</a>')
+    .join('');
+  set('<div class="container nav-inner" id="navInner"></div>',
+    '<div class="container nav-inner" id="navInner">' + navLinks + '</div>');
+
+  const crumbsHtml = '<nav class="container ssr-crumbs" id="ssrCrumbs" aria-label="Fil d Ariane">' + seo.crumbs.join(' › ') + '</nav>';
+  set('<section class="container" id="products">', crumbsHtml + '\n\n    <section class="container" id="products">');
+
+  set('<h2 class="section-title" id="sectionTitle">Nos produits</h2>',
+    '<h1 class="section-title" id="sectionTitle">' + xmlEscape(seo.label) + '</h1>');
+  const parent = opts.sub ? String(opts.cat.name) : '';
+  set('<p class="section-sub" id="sectionSub"></p>',
+    '<p class="section-sub" id="sectionSub">' + xmlEscape(list.length + ' produit(s)' + (parent ? ' · ' + parent : '')) + '</p>');
+
+  const cards = categoryCards(list, s);
+  set('<div class="grid" id="grid"></div>',
+    '<div class="grid" id="grid">' + (cards || '<p class="ssr-empty">Aucun produit disponible dans cette catégorie pour le moment.</p>') + '</div>');
+
+  const footCats = (opts.cats || []).filter((c) => c && c.name && c.id)
+    .map((c) => '<a href="' + xmlEscape(categoryPath(c)) + '">' + xmlEscape(c.name) + '</a>').join('');
+  set('<footer class="footer" id="footer"></footer>',
+    '<footer class="footer" id="footer"><div class="container footer-cats"><strong>Catégories :</strong> ' + footCats + '</div></footer>');
+
+  set('</head>', '<script type="application/ld+json">' + JSON.stringify(seo.bc) + '</script>\n' +
+    '<style id="ssrCategoryCss">\n' + SSR_CATEGORY_CSS + '\n</style>\n  </head>');
+  return html;
+}
+
 function serveCategoryPage(req, res, catSeg, subSeg) {
   const cats = readData('categories.json', []);
   const s = getSettings();
@@ -755,14 +860,14 @@ function serveCategoryPage(req, res, catSeg, subSeg) {
     if (sub && String(p.subcategory) !== String(sub.id)) return false;
     return true;
   });
-  return sendHtml(res, 200, renderCategoryPage(req, {
+  return sendHtml(res, 200, renderCategorySpaPage(req, {
     settings: s,
     cat: cat,
     sub: sub,
     cats: cats,
     products: products,
     canonical: siteBase(req) + canonicalPath
-  }), 'public, max-age=60');
+  }), 'no-store');
 }
 
 function serveProductPage(req, res, seg) {
