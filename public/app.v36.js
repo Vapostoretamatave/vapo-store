@@ -162,29 +162,54 @@
     document.title = label + ' | ' + (s.storeName || 'Vapo Store');
   }
 
-  // Bloc produit rendu par le serveur : on le cache des qu'on quitte la fiche
+  // Sur /produit/... : seul le bloc produit est visible (pas de banniere ni de grille).
+  // Des qu'on quitte la fiche, on rend la boutique et on cache le bloc du serveur.
   function syncProductPage() {
     var block = $('ssrProduct');
     var crumbs = $('ssrProductCrumbs');
     if (!block && !crumbs) return;
     var stay = state.onProductPage && location.pathname.indexOf('/produit/') === 0;
+    document.body.classList.toggle('on-product', !!stay);
     if (block) block.hidden = !stay;
     if (crumbs) crumbs.hidden = !stay;
-    if (!stay && state.settings && !$('ssrCrumbs')) {
+    if (!state.settings || $('ssrCrumbs')) return;
+    if (stay && crumbs) {
+      var name = block ? block.querySelector('h1') : null;
+      if (name) document.title = name.textContent.trim() + ' | ' + state.settings.storeName;
+    } else if (!stay) {
       document.title = state.settings.storeName + ' - ' + state.settings.tagline;
     }
+  }
+
+  // Retour navigateur : reconnait l'URL /produit/... et reouvre la fiche.
+  function syncProductFromUrl() {
+    if (location.pathname.indexOf('/produit/') === 0 && state.products) {
+      var was = state.onProductPage;
+      var p = readProductPath();
+      if (p && !was && $('detailModal').classList.contains('hidden')) {
+        if (hasDetail(p)) openProductDetail(p.id);
+        else openProduct(p.id);
+      }
+    }
+    syncProductPage();
   }
 
   function writeHash() {
     // Sur une fiche produit, on garde l'URL /produit/... tant qu'on reste sur cette fiche
     if (state.onProductPage && !state.search && !state.promoOnly && state.category === 'all' &&
         location.pathname.indexOf('/produit/') === 0) return;
+    // Quand on QUITTE une fiche, on empile la nouvelle URL pour que le bouton
+    // "retour" du navigateur ramene a la fiche (sinon replaceState l'ecrase).
+    var leavingProduct = !state.onProductPage && location.pathname.indexOf('/produit/') === 0;
+    var setUrl = leavingProduct
+      ? function (u) { history.pushState(null, '', u); }
+      : function (u) { history.replaceState(null, '', u); };
     // Vue "categorie simple" (sans autre filtre) -> vraie URL indexable /categorie/...
-    // La navigation reste instantanee (replaceState, aucun rechargement).
+    // La navigation reste instantanee (aucun rechargement).
     if (!state.promoOnly && !state.search && state.category !== 'all' &&
         (!state.subcategory || state.facet === 'sub')) {
       var clean = categoryPathOf(state.category, state.subcategory);
-      if (clean) { history.replaceState(null, '', clean); return; }
+      if (clean) { setUrl(clean); return; }
     }
     var h = '';
     if (state.promoOnly) {
@@ -198,7 +223,7 @@
       h = 'search/' + state.search;
     }
     // Les autres filtres n'ont pas de page dediee : on reste en # mais toujours depuis "/"
-    history.replaceState(null, '', '/' + (h ? '#' + h : '#products'));
+    setUrl('/' + (h ? '#' + h : '#products'));
   }
 
   var cart = loadCart();
@@ -583,6 +608,7 @@
       a.addEventListener('click', function (e) {
         e.preventDefault();
         var parts = a.getAttribute('data-filter').split('|');
+        state.onProductPage = false;
         state.facet = parts[0] || 'sub';
         state.subcategory = parts.slice(1).join('|') || '';
         closeFilter();
@@ -1418,6 +1444,7 @@ renderInitialPrice($('dlPrice'), p);
     $('heroNext').onclick = function () { goHero(heroIndex + 1); restartHero(); };
 
     $('sortSelect').onchange = function () {
+      state.onProductPage = false;
       state.sort = this.value;
       renderProducts();
     };
@@ -1450,7 +1477,19 @@ renderInitialPrice($('dlPrice'), p);
       }
     });
 
-    window.addEventListener('hashchange', function () { readHash(); });
+    function onUrlChange() {
+      var onProductUrl = location.pathname.indexOf('/produit/') === 0;
+      // Sur une URL /produit/... avec un hash vide, readHash() appellerrrait
+      // goHome() qui ecraserait l'URL avant qu'on ait rouvert la fiche.
+      if (onProductUrl && (!location.hash || location.hash === '#products')) {
+        syncProductFromUrl();
+      } else {
+        readHash();
+        syncProductFromUrl();
+      }
+    }
+    window.addEventListener('hashchange', onUrlChange);
+    window.addEventListener('popstate', onUrlChange);
 
     fetch('/api/store')
       .then(function (r) { return r.json(); })

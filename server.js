@@ -926,6 +926,7 @@ function serveCategoryPage(req, res, catSeg, subSeg) {
 
 // CSS scopé pour le bloc produit rendu cote serveur dans la boutique
 const SSR_PRODUCT_CSS = [
+  'body.on-product #hero,body.on-product #trust,body.on-product #products,body.on-product #about,body.on-product .wa-float{display:none!important}',
   '.ssr-product{background:#fff;border:1px solid #e3eaee;border-radius:18px;padding:22px;margin:16px 0 26px;color:#0d1b1e}',
   '.sp-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}',
   '.sp-media>img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#f6f9fa;border-radius:14px}',
