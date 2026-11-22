@@ -12,7 +12,8 @@
     search: '',
     promoOnly: false,
     sort: 'pertinence',
-    page: 1
+    page: 1,
+    onProductPage: false
   };
 
   var PAGE_SIZE = 18;
@@ -28,6 +29,7 @@
   function readHash() {
     var h = location.hash.replace(/^#\/?/, '');
     state.promoOnly = false;
+    state.onProductPage = false;
     if (!h || h === 'products') { goHome(); return; }
     var parts = h.split('/');
     if (parts[0] === 'cat' && parts[1]) {
@@ -160,7 +162,23 @@
     document.title = label + ' | ' + (s.storeName || 'Vapo Store');
   }
 
+  // Bloc produit rendu par le serveur : on le cache des qu'on quitte la fiche
+  function syncProductPage() {
+    var block = $('ssrProduct');
+    var crumbs = $('ssrProductCrumbs');
+    if (!block && !crumbs) return;
+    var stay = state.onProductPage && location.pathname.indexOf('/produit/') === 0;
+    if (block) block.hidden = !stay;
+    if (crumbs) crumbs.hidden = !stay;
+    if (!stay && state.settings && !$('ssrCrumbs')) {
+      document.title = state.settings.storeName + ' - ' + state.settings.tagline;
+    }
+  }
+
   function writeHash() {
+    // Sur une fiche produit, on garde l'URL /produit/... tant qu'on reste sur cette fiche
+    if (state.onProductPage && !state.search && !state.promoOnly && state.category === 'all' &&
+        location.pathname.indexOf('/produit/') === 0) return;
     // Vue "categorie simple" (sans autre filtre) -> vraie URL indexable /categorie/...
     // La navigation reste instantanee (replaceState, aucun rechargement).
     if (!state.promoOnly && !state.search && state.category !== 'all' &&
@@ -226,10 +244,39 @@
       .replace(/-+$/g, '');
   }
 
-  function productPath(p) {
+  function productSegmentOf(p) {
     var id = String((p && p.id) || '').replace(/-/g, '').toLowerCase();
     var slug = slugify(p && p.name) || 'produit';
-    return '/produit/' + (id ? slug + '-' + id.slice(0, 8) : slug);
+    return id ? slug + '-' + id.slice(0, 8) : slug;
+  }
+
+  function productPath(p) {
+    return '/produit/' + productSegmentOf(p);
+  }
+
+  // Inverse de productPath() : retrouve le produit depuis /produit/<slug> au chargement
+  function readProductPath() {
+    var m = location.pathname.match(/^\/produit\/([^\/]+)\/?$/);
+    if (!m) return null;
+    var seg = decodeURIComponent(m[1]).replace(/\/+$/, '').toLowerCase();
+    if (!seg) return null;
+    var list = state.products || [];
+    var p = list.find(function (x) { return productSegmentOf(x) === seg; });
+    if (!p) p = list.find(function (x) { return String(x.id || '').toLowerCase() === seg; });
+    if (!p) {
+      var i = seg.lastIndexOf('-');
+      while (i > -1) {
+        var tok = seg.slice(i + 1);
+        if (tok.length >= 2) {
+          p = list.find(function (x) { return String(x.id || '').replace(/-/g, '').toLowerCase() === tok; }) ||
+              list.find(function (x) { return String(x.id || '').replace(/-/g, '').toLowerCase().indexOf(tok) === 0; });
+          if (p) break;
+        }
+        i = seg.lastIndexOf('-', i - 1);
+      }
+    }
+    if (p) state.onProductPage = true;
+    return p || null;
   }
 
   function toast(msg) {
@@ -367,8 +414,8 @@
       el.textContent = s.customCss;
       document.head.appendChild(el);
     }
-    // Sur une page categorie, le titre SEO est rendu par le serveur : ne pas l'ecraser.
-    if (!$('ssrCrumbs')) document.title = s.storeName + ' - ' + s.tagline;
+    // Sur une page categorie ou produit, le titre SEO vient du serveur : ne pas l'ecraser.
+    if (!$('ssrCrumbs') && !$('ssrProductCrumbs')) document.title = s.storeName + ' - ' + s.tagline;
     $('brandName').textContent = s.logoText || s.storeName;
     $('brandTag').textContent = s.tagline;
     if (s.logoImage) {
@@ -567,6 +614,7 @@
   /* ---------------- Nav ---------------- */
   function selectCategory(catId, facet, subId) {
     state.promoOnly = false;
+    state.onProductPage = false;
     state.category = catId;
     state.facet = facet || 'sub';
     state.subcategory = subId || '';
@@ -577,6 +625,7 @@
   }
 
   function goHome() {
+    state.onProductPage = false;
     state.category = 'all';
     state.facet = 'sub';
     state.subcategory = '';
@@ -590,6 +639,7 @@
   }
 
   function goPromo() {
+    state.onProductPage = false;
     state.category = 'all';
     state.facet = 'sub';
     state.subcategory = '';
@@ -879,6 +929,7 @@
       });
     });
     syncCategoryCrumbs();
+    syncProductPage();
     writeHash();
     renderPager(totalPages);
   }
@@ -1377,6 +1428,7 @@ renderInitialPrice($('dlPrice'), p);
       var navLinks = document.querySelectorAll('.nav-link');
       navLinks.forEach(function (x) { x.classList.remove('active'); });
       state.promoOnly = false;
+      state.onProductPage = false;
       state.category = 'all';
       state.subcategory = '';
       renderProducts();
@@ -1412,7 +1464,13 @@ renderInitialPrice($('dlPrice'), p);
         renderTrust();
         renderFooter();
         renderNav();
-        if (readCategoryPath()) {
+        var prodOnLoad = readProductPath();
+        if (prodOnLoad) {
+          // URL /produit/... : la boutique s'ouvre avec la fiche du produit
+          renderProducts();
+          if (hasDetail(prodOnLoad)) openProductDetail(prodOnLoad.id);
+          else openProduct(prodOnLoad.id);
+        } else if (readCategoryPath()) {
           // URL /categorie/... : la boutique s'ouvre directement sur la categorie
           renderProducts();
         } else if (location.hash && location.hash !== '#products' && location.hash !== '#/') {

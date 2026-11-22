@@ -541,6 +541,60 @@ function footerCats(cats) {
   ).join(' · ') + '</div>';
 }
 
+// Donnees SEO d'une fiche produit (a garder en sync avec renderProductPage)
+function productSeo(req, p, s, cats, canonical) {
+  const base = siteBase(req);
+  const store = String(s.storeName || 'Vapo Store');
+  const ep = effectivePrice(p);
+  const out = allOptionsOut(p);
+  const img = absoluteUrl(base, p.image || '/images/placeholder.svg');
+  const cat = (cats || []).find((c) => c.id === p.category);
+  const sub = cat && (cat.subs || []).find((x) => x.id === p.subcategory);
+  const short = String(p.description || '').trim();
+  const plainLong = String(p.longDescription || '').replace(/\[image\][\s\S]*?\[\/image\]/gi, ' ').replace(/\s+/g, ' ').trim();
+  const metaDesc = (short || plainLong || (p.name + ' disponible chez ' + store)).slice(0, 300);
+  const priceTxt = formatPrice(ep.final, s);
+  const wa = 'https://wa.me/' + String(s.whatsapp || '').replace(/\D/g, '') + '?text=' +
+    encodeURIComponent('Bonjour, je souhaite commander :\n• ' + p.name + '\n• Prix : ' + priceTxt + '\n\n' + canonical);
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.name,
+    image: [img],
+    description: metaDesc,
+    sku: String(p.id || ''),
+    brand: { '@type': 'Brand', name: String(p.marque || store) },
+    offers: {
+      '@type': 'Offer',
+      url: canonical,
+      priceCurrency: 'MGA',
+      price: String(ep.final),
+      availability: out ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      seller: { '@type': 'Organization', name: store }
+    }
+  };
+  const bc = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: base + '/' }
+    ]
+  };
+  const crumbs = ['<a href="/">Accueil</a>'];
+  if (cat) {
+    crumbs.push('<a href="' + xmlEscape(categoryPath(cat)) + '">' + xmlEscape(cat.name) + '</a>');
+    bc.itemListElement.push({ '@type': 'ListItem', position: 2, name: String(cat.name), item: base + categoryPath(cat) });
+  }
+  if (cat && sub) {
+    crumbs.push('<a href="' + xmlEscape(categoryPath(cat, sub)) + '">' + xmlEscape(sub.name) + '</a>');
+    bc.itemListElement.push({ '@type': 'ListItem', position: 3, name: String(sub.name), item: base + categoryPath(cat, sub) });
+  }
+  crumbs.push('<span>' + xmlEscape(p.name) + '</span>');
+  bc.itemListElement.push({ '@type': 'ListItem', position: bc.itemListElement.length + 1, name: String(p.name), item: canonical });
+  return { store, ep, out, img, cat, sub, short, metaDesc, priceTxt, wa, ld, bc, crumbs, title: p.name + ' | ' + store };
+}
+
 function renderProductPage(req, p, s, cats, canonical) {
   const base = siteBase(req);
   const store = String(s.storeName || 'Vapo Store');
@@ -870,6 +924,116 @@ function serveCategoryPage(req, res, catSeg, subSeg) {
   }), 'no-store');
 }
 
+// CSS scopé pour le bloc produit rendu cote serveur dans la boutique
+const SSR_PRODUCT_CSS = [
+  '.ssr-product{background:#fff;border:1px solid #e3eaee;border-radius:18px;padding:22px;margin:16px 0 26px;color:#0d1b1e}',
+  '.sp-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}',
+  '.sp-media>img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#f6f9fa;border-radius:14px}',
+  '.sp-gal{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}',
+  '.sp-gal img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#f6f9fa}',
+  '.sp-info h1{font-size:26px;line-height:1.2;margin:0 0 12px}',
+  '.sp-metas{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}',
+  '.sp-chip{font-size:12px;font-weight:700;background:#f1f6f7;border:1px solid #e3eaee;border-radius:100px;padding:5px 10px;color:#33525a}',
+  '.sp-price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 6px}',
+  '.sp-price .now{font-size:28px;font-weight:900}',
+  '.sp-price .old{font-size:16px;color:#6b8087;text-decoration:line-through}',
+  '.sp-price .off{font-size:12px;font-weight:900;color:#fff;background:#e23838;border-radius:100px;padding:4px 9px}',
+  '.sp-stock{font-size:13px;font-weight:800;margin:0 0 14px;color:#0a8f5b}',
+  '.sp-stock.ko{color:#cf2b2b}',
+  '.sp-desc{font-size:15px;line-height:1.55;color:#25454d;margin:0 0 18px;white-space:pre-line}',
+  '.sp-cta{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#00c795;color:#042018;font-weight:900;font-size:15px;text-decoration:none;padding:13px 20px;border-radius:100px}',
+  '.sp-opts{margin:16px 0 0;font-size:13px;color:#33525a}',
+  '.sp-opts b{display:block;margin-bottom:6px}',
+  '.sp-opts .o{display:inline-block;border:1px solid #e3eaee;background:#fff;border-radius:100px;padding:5px 11px;margin:0 6px 6px 0}',
+  '.sp-opts .o.off{color:#b3c0c5;text-decoration:line-through}',
+  '.sp-long{margin-top:22px;border-top:1px solid #e3eaee;padding-top:18px}',
+  '.sp-long h2{font-size:18px;margin:0 0 10px}',
+  '.sp-long p{font-size:15px;line-height:1.6;color:#25454d;margin:0 0 10px}',
+  '.sp-long p.li{padding-left:14px;margin:0 0 6px}',
+  '.sp-long .fig{margin:14px 0}',
+  '.sp-long .fig img{max-width:100%;height:auto;border-radius:12px;display:block}',
+  '@media(max-width:760px){.sp-grid{grid-template-columns:1fr;gap:18px}.ssr-product{padding:16px}.sp-info h1{font-size:21px}.sp-price .now{font-size:24px}}'
+].join('\n');
+
+// Fiche produit = LA BOUTIQUE, avec le bloc produit en HTML pour Google et les IA.
+// Le JS ouvre ensuite la modale fiche détaillée sur cette même page.
+function renderProductSpaPage(req, p, s, cats, canonical) {
+  const seo = productSeo(req, p, s, cats, canonical);
+  let html;
+  try {
+    html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
+  } catch (e) {
+    return renderProductPage(req, p, s, cats, canonical);
+  }
+  const set = (needle, replacement) => {
+    html = html.replace(needle, function () { return replacement; });
+  };
+
+  set(/<title>[\s\S]*?<\/title>/, '<title>' + xmlEscape(seo.title) + '</title>');
+  set(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + xmlEscape(seo.metaDesc) + '">');
+  set(/<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="' + xmlEscape(canonical) + '">');
+  set(/<meta property="og:type" content="[^"]*">/, '<meta property="og:type" content="product">');
+  set(/<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="' + xmlEscape(canonical) + '">');
+  set(/<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="' + xmlEscape(p.name) + '">');
+  set(/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="' + xmlEscape(seo.metaDesc) + '">');
+
+  const navLinks = '<a class="nav-link" href="/">Tous les produits</a>' + (cats || [])
+    .filter((c) => c && c.name && c.id)
+    .map((c) => '<a class="nav-link" href="' + xmlEscape(categoryPath(c)) + '">' + xmlEscape(c.name) + '</a>')
+    .join('');
+  set('<div class="container nav-inner" id="navInner"></div>',
+    '<div class="container nav-inner" id="navInner">' + navLinks + '</div>');
+
+  const chips = [];
+  if (p.marque) chips.push('Marque : ' + p.marque);
+  if (p.contenance) chips.push(p.contenance);
+  if (p.taux) chips.push(p.taux);
+  if (p.badge) chips.push(p.badge);
+  const gallery = (Array.isArray(p.gallery) ? p.gallery : []).filter(Boolean).slice(0, 8);
+  const opts = Array.isArray(p.options) ? p.options.filter(Boolean) : [];
+
+  const article =
+    '<nav class="container ssr-crumbs" id="ssrProductCrumbs" aria-label="Fil d Ariane">' + seo.crumbs.join(' › ') + '</nav>' +
+    '<section class="container ssr-product" id="ssrProduct">' +
+      '<div class="sp-grid">' +
+        '<div class="sp-media"><img src="' + xmlEscape(seo.img) + '" alt="' + xmlEscape(p.name) + '" fetchpriority="high">' +
+          (gallery.length ? '<div class="sp-gal">' + gallery.map((g) => '<img src="' + xmlEscape(absoluteUrl('', g)) + '" alt="' + xmlEscape(p.name) + '" loading="lazy">').join('') + '</div>' : '') +
+        '</div>' +
+        '<div class="sp-info">' +
+          '<h1>' + xmlEscape(p.name) + '</h1>' +
+          (chips.length ? '<div class="sp-metas">' + chips.map((c) => '<span class="sp-chip">' + xmlEscape(c) + '</span>').join('') + '</div>' : '') +
+          '<div class="sp-price">' +
+            (seo.ep.promo !== null
+              ? '<span class="now">' + xmlEscape(formatPrice(seo.ep.promo, s)) + '</span><span class="old">' + xmlEscape(formatPrice(seo.ep.price, s)) + '</span><span class="off">-' + Math.round((1 - seo.ep.promo / seo.ep.price) * 100) + '%</span>'
+              : '<span class="now">' + xmlEscape(seo.priceTxt) + '</span>') +
+          '</div>' +
+          '<div class="sp-stock' + (seo.out ? ' ko' : '') + '">' + (seo.out ? 'Rupture de stock' : '✔ En stock') + '</div>' +
+          (seo.short ? '<p class="sp-desc">' + xmlEscape(seo.short) + '</p>' : '') +
+          '<a class="sp-cta" href="' + xmlEscape(seo.wa) + '" target="_blank" rel="noopener">Commander sur WhatsApp</a>' +
+          (opts.length ? '<div class="sp-opts"><b>Options disponibles</b>' + opts.map((o) => {
+            const off = p.optionStock && p.optionStock[o] === false;
+            const op = p.optionPrices && p.optionPrices[o] != null ? ' — ' + formatPrice(Number(p.optionPrices[o]), s) : '';
+            return '<span class="o' + (off ? ' off' : '') + '">' + xmlEscape(o + op) + (off ? ' (rupture)' : '') + '</span>';
+          }).join('') + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      (p.longDescription ? '<div class="sp-long"><h2>Description</h2>' + renderLongDescServer(p.longDescription) + '</div>' : '') +
+    '</section>';
+  set('<section class="hero" id="hero">', article + '\n\n    <section class="hero" id="hero">');
+
+  const footCats = (cats || []).filter((c) => c && c.name && c.id)
+    .map((c) => '<a href="' + xmlEscape(categoryPath(c)) + '">' + xmlEscape(c.name) + '</a>').join('');
+  set('<footer class="footer" id="footer"></footer>',
+    '<footer class="footer" id="footer"><div class="container footer-cats"><strong>Catégories :</strong> ' + footCats + '</div></footer>');
+
+  set('</head>', '<script type="application/ld+json">' + JSON.stringify(seo.ld) + '</script>\n' +
+    '<script type="application/ld+json">' + JSON.stringify(seo.bc) + '</script>\n' +
+    '<meta property="og:image" content="' + xmlEscape(seo.img) + '">\n' +
+    '<meta name="twitter:card" content="summary_large_image">\n' +
+    '<style id="ssrProductCss">\n' + SSR_PRODUCT_CSS + '\n</style>\n  </head>');
+  return html;
+}
+
 function serveProductPage(req, res, seg) {
   const products = readData('products.json', []);
   const p = findProductBySegment(products, seg);
@@ -883,7 +1047,7 @@ function serveProductPage(req, res, seg) {
     return res.end();
   }
   const cats = readData('categories.json', []);
-  return sendHtml(res, 200, renderProductPage(req, p, s, cats, siteBase(req) + canonicalPath));
+  return sendHtml(res, 200, renderProductSpaPage(req, p, s, cats, siteBase(req) + canonicalPath), 'no-store');
 }
 
 
